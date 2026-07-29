@@ -54,6 +54,7 @@
     companyOptions: document.getElementById("companyOptions"),
     formName: document.getElementById("formName"),
     formRole: document.getElementById("formRole"),
+    formLogoUrl: document.getElementById("formLogoUrl"),
     formPhone: document.getElementById("formPhone"),
     formNotes: document.getElementById("formNotes"),
     deleteContactBtn: document.getElementById("deleteContactBtn"),
@@ -150,6 +151,40 @@
     }
   }
 
+  function initialsFor(company) {
+    if (!company) return "?";
+    const words = company.replace(/&/g, " ").split(/\s+/).filter(Boolean);
+    if (words.length === 0) return "?";
+    if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+    return (words[0][0] + words[1][0]).toUpperCase();
+  }
+
+  function colorFor(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const hue = Math.abs(hash) % 360;
+    return `hsl(${hue}, 55%, 42%)`;
+  }
+
+  window.handleLogoError = function (imgEl) {
+    const div = document.createElement("div");
+    div.className = "company-logo initials";
+    div.style.background = imgEl.dataset.color;
+    div.textContent = imgEl.dataset.initials;
+    imgEl.replaceWith(div);
+  };
+
+  function logoHtml(contact) {
+    const initials = initialsFor(contact.company);
+    const color = colorFor(contact.company || contact.name || "?");
+    if (contact.logoUrl) {
+      return `<img class="company-logo" src="${escapeHtml(contact.logoUrl)}" alt="${escapeHtml(contact.company)} logo" data-initials="${escapeHtml(initials)}" data-color="${escapeHtml(color)}" onerror="handleLogoError(this)">`;
+    }
+    return `<div class="company-logo initials" style="background:${color}">${escapeHtml(initials)}</div>`;
+  }
+
   function whatsappLink(phone, name) {
     const digits = phone.replace(/[^\d]/g, "");
     const text = encodeURIComponent(`Hi ${name}, `);
@@ -196,9 +231,14 @@
       const card = document.createElement("div");
       card.className = "contact-card";
       card.innerHTML = `
-        ${c.bankerType ? `<span class="badge">${c.bankerType}</span>` : ""}
-        <div class="name">${escapeHtml(c.name)}</div>
-        ${c.role ? `<div class="role">${escapeHtml(c.role)}</div>` : ""}
+        <div class="card-top">
+          ${logoHtml(c)}
+          <div class="card-top-text">
+            ${c.bankerType ? `<span class="badge">${c.bankerType}</span>` : ""}
+            <div class="name">${escapeHtml(c.name)}</div>
+            ${c.role ? `<div class="role">${escapeHtml(c.role)}</div>` : ""}
+          </div>
+        </div>
         <div class="company">${escapeHtml(c.company)}</div>
         <div class="phone">${escapeHtml(c.phone)}</div>
         ${c.notes ? `<div class="notes">${escapeHtml(c.notes)}</div>` : ""}
@@ -243,6 +283,7 @@
       updateFormCompanyOptions();
       els.formBankerType.value = contact.bankerType || "Residential";
       els.formCompany.value = contact.company;
+      els.formLogoUrl.value = contact.logoUrl || "";
       els.formName.value = contact.name;
       els.formRole.value = contact.role || "";
       els.formPhone.value = contact.phone;
@@ -271,6 +312,7 @@
       id,
       category,
       company: els.formCompany.value.trim(),
+      logoUrl: els.formLogoUrl.value.trim() || undefined,
       bankerType: categoryHasBankerType(category) ? els.formBankerType.value : undefined,
       name: els.formName.value.trim(),
       role: els.formRole.value.trim(),

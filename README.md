@@ -8,8 +8,8 @@ A lightweight, no-build web app for looking up contacts for the partners you wor
 2. Additional fields appear based on that type:
    - **Banker** shows a Bank/Company Name filter and a Residential/Commercial filter.
    - Other types show a Company/Firm Name filter.
-3. Matching contacts appear below as cards with name, role, company, and a **WhatsApp** button that opens a chat with that number.
-4. Use **+ Add Contact** to add a new contact (or edit/delete an existing one via the **Edit** button on a card).
+3. Matching contacts appear below as cards with a company logo, name, role, company, and a **WhatsApp** button that opens a chat with that number.
+4. Use **+ Add Contact** to add a new contact (or edit/delete an existing one via the **Edit** button on a card). You can optionally paste a **Logo URL** for the company — if left blank, or if the image fails to load, a colored initials badge is shown instead.
 
 ## Data & persistence
 

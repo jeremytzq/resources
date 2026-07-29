@@ -151,6 +151,38 @@ select:focus, input:focus, textarea:focus {
   gap: 6px;
 }
 
+.card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.card-top-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.company-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  object-fit: contain;
+  background: #fff;
+  border: 1px solid var(--border);
+}
+
+.company-logo.initials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+  border: none;
+}
+
 .contact-card .name {
   font-weight: 700;
   font-size: 1rem;
