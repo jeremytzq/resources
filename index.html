@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resource Dashboard</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>Resource Dashboard</h1>
+    <button id="addContactBtn" class="btn btn-primary">+ Add Contact</button>
+  </header>
+
+  <main class="container">
+    <section class="selector-panel" aria-label="Resource filters">
+      <div class="field-group">
+        <label for="categorySelect">Resource Type</label>
+        <select id="categorySelect">
+          <option value="">Select a resource type…</option>
+        </select>
+      </div>
+
+      <div id="dynamicFields" class="dynamic-fields"></div>
+
+      <div class="field-group">
+        <label for="searchInput">Search by name / company</label>
+        <input type="text" id="searchInput" placeholder="Type to search…">
+      </div>
+
+      <button id="clearFiltersBtn" class="btn btn-ghost">Clear filters</button>
+    </section>
+
+    <section class="results-panel" aria-label="Contact results">
+      <div class="results-header">
+        <h2 id="resultsTitle">Select a resource type to see contacts</h2>
+        <span id="resultsCount" class="results-count"></span>
+      </div>
+      <div id="contactList" class="contact-list"></div>
+    </section>
+  </main>
+
+  <div id="modalOverlay" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modalTitle">Add Contact</h2>
+        <button id="closeModalBtn" class="btn-icon" aria-label="Close">&times;</button>
+      </div>
+      <form id="contactForm">
+        <input type="hidden" id="contactId">
+
+        <div class="field-group">
+          <label for="formCategory">Resource Type *</label>
+          <select id="formCategory" required></select>
+        </div>
+
+        <div class="field-group" id="formBankerTypeGroup" style="display:none;">
+          <label for="formBankerType">Banker Type *</label>
+          <select id="formBankerType">
+            <option value="Residential">Residential</option>
+            <option value="Commercial">Commercial</option>
+          </select>
+        </div>
+
+        <div class="field-group">
+          <label for="formCompany">Bank / Company / Firm Name *</label>
+          <input type="text" id="formCompany" list="companyOptions" required autocomplete="off">
+          <datalist id="companyOptions"></datalist>
+        </div>
+
+        <div class="field-group">
+          <label for="formName">Contact Name *</label>
+          <input type="text" id="formName" required>
+        </div>
+
+        <div class="field-group">
+          <label for="formRole">Role / Title</label>
+          <input type="text" id="formRole">
+        </div>
+
+        <div class="field-group">
+          <label for="formPhone">Phone Number (with country code) *</label>
+          <input type="tel" id="formPhone" placeholder="+6591234567" required>
+        </div>
+
+        <div class="field-group">
+          <label for="formNotes">Notes</label>
+          <textarea id="formNotes" rows="2"></textarea>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" id="deleteContactBtn" class="btn btn-danger hidden">Delete</button>
+          <button type="submit" class="btn btn-primary">Save Contact</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

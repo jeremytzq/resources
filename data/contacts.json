@@ -1,0 +1,123 @@
+[
+  {
+    "id": "seed-1",
+    "category": "banker",
+    "company": "DBS Bank",
+    "bankerType": "Residential",
+    "name": "Alicia Tan",
+    "role": "Mortgage Relationship Manager",
+    "phone": "+6591234567",
+    "notes": "Handles residential home loan packages."
+  },
+  {
+    "id": "seed-2",
+    "category": "banker",
+    "company": "DBS Bank",
+    "bankerType": "Commercial",
+    "name": "Marcus Lim",
+    "role": "Commercial Banking Manager",
+    "phone": "+6591234568",
+    "notes": "Handles commercial and industrial property loans."
+  },
+  {
+    "id": "seed-3",
+    "category": "banker",
+    "company": "OCBC Bank",
+    "bankerType": "Residential",
+    "name": "Rachel Koh",
+    "role": "Home Loan Specialist",
+    "phone": "+6591234569",
+    "notes": ""
+  },
+  {
+    "id": "seed-4",
+    "category": "banker",
+    "company": "UOB",
+    "bankerType": "Commercial",
+    "name": "Daniel Ng",
+    "role": "SME Banking Manager",
+    "phone": "+6591234570",
+    "notes": ""
+  },
+  {
+    "id": "seed-5",
+    "category": "law_firm",
+    "company": "Rajah & Tann Singapore LLP",
+    "name": "Priya Sharma",
+    "role": "Conveyancing Lawyer",
+    "phone": "+6591234571",
+    "notes": "Property conveyancing and title transfers."
+  },
+  {
+    "id": "seed-6",
+    "category": "law_firm",
+    "company": "Allen & Gledhill LLP",
+    "name": "Wei Jie Chua",
+    "role": "Partner, Corporate Law",
+    "phone": "+6591234572",
+    "notes": ""
+  },
+  {
+    "id": "seed-7",
+    "category": "corporate_secretary",
+    "company": "Corp Sec Partners Pte Ltd",
+    "name": "Michelle Wong",
+    "role": "Corporate Secretary",
+    "phone": "+6591234573",
+    "notes": "Handles company incorporation and annual filings."
+  },
+  {
+    "id": "seed-8",
+    "category": "accounting",
+    "company": "Tan & Associates Accounting",
+    "name": "Kevin Teo",
+    "role": "Chartered Accountant",
+    "phone": "+6591234574",
+    "notes": "Bookkeeping and tax filing for SMEs."
+  },
+  {
+    "id": "seed-9",
+    "category": "accounting",
+    "company": "Grant Thornton Singapore",
+    "name": "Serene Goh",
+    "role": "Audit Associate",
+    "phone": "+6591234575",
+    "notes": ""
+  },
+  {
+    "id": "seed-10",
+    "category": "property_partner",
+    "company": "PropNex Realty",
+    "name": "Farhan Ismail",
+    "role": "Property Agent",
+    "phone": "+6591234576",
+    "notes": "Residential resale and rental specialist."
+  },
+  {
+    "id": "seed-11",
+    "category": "property_partner",
+    "company": "Knight Frank Singapore",
+    "name": "Josephine Lee",
+    "role": "Commercial Property Consultant",
+    "phone": "+6591234577",
+    "notes": ""
+  },
+  {
+    "id": "seed-12",
+    "category": "interior_designer",
+    "company": "Design Atelier",
+    "name": "Bryan Ho",
+    "role": "Principal Interior Designer",
+    "phone": "+6591234578",
+    "notes": "Residential renovation and space planning."
+  },
+  {
+    "id": "seed-13",
+    "category": "mortgage_broker",
+    "company": "Loan Advisor SG",
+    "name": "Nurul Aini",
+    "role": "Mortgage Broker",
+    "phone": "+6591234579",
+    "notes": "Compares packages across multiple banks."
+  }
+]
