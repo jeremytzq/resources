@@ -53,6 +53,8 @@ Whether you use it directly (mode 2) or via the Vercel server proxy (mode 1), th
    - Who has access: **Anyone**. (Required so the app can call it without each visitor signing in with Google. This URL is a secret in its own right — see below for how it's kept away from visitors.)
 7. Click **Deploy**, approve the authorization prompts, then copy the **Web app URL** (it ends in `/exec`).
 
+**If you already had a Sheet set up before `rating`/`review` existed:** just paste the updated `Code.gs` into the same Apps Script project and create a new deployment version (Deploy → Manage deployments → edit → New version) — no need to recreate the Sheet. The code now reads whichever columns actually exist in row 1 and appends `rating`/`review` to the end automatically the next time it writes, instead of assuming a fixed column order. It also forces the phone cell to plain-text formatting on every write, since Google Sheets can otherwise treat a leading `+` (e.g. `+6591234567`) as the start of a formula and silently strip it.
+
 ## Deploying to Vercel (so anyone with the link sees the shared database)
 
 This gives every visitor automatic, live access to the same Google Sheet, with no per-browser setup:

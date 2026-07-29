@@ -20,14 +20,34 @@ function getSheet() {
   var sheet = ss.getSheetByName(SHEET_NAME);
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_NAME);
-    sheet.appendRow(HEADERS);
   }
   return sheet;
 }
 
+/**
+ * Reads the sheet's actual header row and appends any HEADERS fields it's
+ * missing (e.g. rating/review added to the schema after the sheet was
+ * first created), without touching existing columns or data. Every
+ * function below looks up a field's column position from this returned
+ * array rather than assuming the HEADERS constant's order matches the
+ * physical sheet — those two can drift on a sheet created before a schema
+ * change, which previously caused writes to land in the wrong column.
+ */
+function ensureHeaders(sheet) {
+  var lastCol = sheet.getLastColumn();
+  var existing = lastCol > 0 ? sheet.getRange(1, 1, 1, lastCol).getValues()[0] : [];
+  var missing = HEADERS.filter(function (h) { return existing.indexOf(h) === -1; });
+  if (missing.length > 0) {
+    sheet.getRange(1, existing.length + 1, 1, missing.length).setValues([missing]);
+    existing = existing.concat(missing);
+  }
+  return existing;
+}
+
 function readContacts(sheet) {
+  var headers = ensureHeaders(sheet);
   var data = sheet.getDataRange().getValues();
-  var headers = data.shift();
+  data.shift(); // drop header row
   return data
     .filter(function (row) { return row[0] !== '' && row[0] !== null; })
     .map(function (row) {
@@ -69,15 +89,16 @@ function doPost(e) {
  * else about a contact.
  */
 function updateRating(sheet, id, rating, review) {
+  var headers = ensureHeaders(sheet);
+  var idCol = headers.indexOf('id');
+  var ratingCol = headers.indexOf('rating');
+  var reviewCol = headers.indexOf('review');
   var data = sheet.getDataRange().getValues();
-  var idCol = HEADERS.indexOf('id');
-  var ratingCol = HEADERS.indexOf('rating');
-  var reviewCol = HEADERS.indexOf('review');
 
   for (var i = 1; i < data.length; i++) {
     if (String(data[i][idCol]) === String(id)) {
-      sheet.getRange(i + 1, ratingCol + 1).setValue(rating || '');
-      if (review !== undefined && review !== null) {
+      if (ratingCol !== -1) sheet.getRange(i + 1, ratingCol + 1).setValue(rating || '');
+      if (reviewCol !== -1 && review !== undefined && review !== null) {
         sheet.getRange(i + 1, reviewCol + 1).setValue(review);
       }
       break;
@@ -86,31 +107,40 @@ function updateRating(sheet, id, rating, review) {
 }
 
 function upsertContact(sheet, contact) {
+  var headers = ensureHeaders(sheet);
+  var idCol = headers.indexOf('id');
   var data = sheet.getDataRange().getValues();
-  var idCol = HEADERS.indexOf('id');
-  var rowIndex = -1;
+  var targetRow = -1;
 
   for (var i = 1; i < data.length; i++) {
     if (String(data[i][idCol]) === String(contact.id)) {
-      rowIndex = i + 1;
+      targetRow = i + 1;
       break;
     }
   }
+  if (targetRow === -1) {
+    targetRow = sheet.getLastRow() + 1;
+  }
 
-  var row = HEADERS.map(function (h) {
+  var row = headers.map(function (h) {
     return contact[h] !== undefined && contact[h] !== null ? contact[h] : '';
   });
 
-  if (rowIndex === -1) {
-    sheet.appendRow(row);
-  } else {
-    sheet.getRange(rowIndex, 1, 1, row.length).setValues([row]);
+  // Force the phone cell to plain-text format before writing — Sheets
+  // otherwise treats a leading "+" the same as "=" and evaluates the
+  // number as a formula, silently dropping the "+" and changing its type.
+  var phoneCol = headers.indexOf('phone');
+  if (phoneCol !== -1) {
+    sheet.getRange(targetRow, phoneCol + 1).setNumberFormat('@');
   }
+
+  sheet.getRange(targetRow, 1, 1, row.length).setValues([row]);
 }
 
 function deleteContact(sheet, id) {
+  var headers = ensureHeaders(sheet);
+  var idCol = headers.indexOf('id');
   var data = sheet.getDataRange().getValues();
-  var idCol = HEADERS.indexOf('id');
 
   for (var i = 1; i < data.length; i++) {
     if (String(data[i][idCol]) === String(id)) {
