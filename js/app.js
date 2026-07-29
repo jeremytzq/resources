@@ -37,11 +37,13 @@
     company: "",
     bankerType: "",
     search: "",
+    sortBy: "rating",
   };
 
   const els = {
     categorySelect: document.getElementById("categorySelect"),
     dynamicFields: document.getElementById("dynamicFields"),
+    sortSelect: document.getElementById("sortSelect"),
     searchInput: document.getElementById("searchInput"),
     clearFiltersBtn: document.getElementById("clearFiltersBtn"),
     resultsTitle: document.getElementById("resultsTitle"),
@@ -455,7 +457,11 @@
         }
         return true;
       })
-      .sort((a, b) => (b.rating || 0) - (a.rating || 0) || a.name.localeCompare(b.name));
+      .sort((a, b) => {
+        if (state.sortBy === "name") return a.name.localeCompare(b.name);
+        if (state.sortBy === "company") return a.company.localeCompare(b.company) || a.name.localeCompare(b.name);
+        return (b.rating || 0) - (a.rating || 0) || a.name.localeCompare(b.name);
+      });
   }
 
   function renderResults() {
@@ -644,13 +650,20 @@
       renderResults();
     });
 
+    els.sortSelect.addEventListener("change", (e) => {
+      state.sortBy = e.target.value;
+      renderResults();
+    });
+
     els.clearFiltersBtn.addEventListener("click", () => {
       state.category = "";
       state.company = "";
       state.bankerType = "";
       state.search = "";
+      state.sortBy = "rating";
       els.categorySelect.value = "";
       els.searchInput.value = "";
+      els.sortSelect.value = "rating";
       renderDynamicFields();
       renderResults();
     });
