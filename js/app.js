@@ -434,6 +434,15 @@
     return `https://wa.me/${digits}?text=${text}`;
   }
 
+  function formatPhoneDisplay(phone) {
+    const digits = (phone || "").replace(/\D/g, "");
+    const local = digits.slice(-8);
+    if (local.length === 8) {
+      return `${local.slice(0, 4)} ${local.slice(4)}`;
+    }
+    return phone;
+  }
+
   function filteredContacts() {
     return contacts
       .filter((c) => {
@@ -485,7 +494,7 @@
           </div>
         </div>
         <div class="company">${escapeHtml(c.company)}</div>
-        <div class="phone">${escapeHtml(c.phone)}</div>
+        <div class="phone">${escapeHtml(formatPhoneDisplay(c.phone))}</div>
         ${starsInputHtml(c.rating)}
         ${c.rating >= 4 ? `<span class="badge-recommended">Recommended</span>` : ""}
         ${c.review ? `<div class="review">"${escapeHtml(c.review)}"</div>` : ""}
