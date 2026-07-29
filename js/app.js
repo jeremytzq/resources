@@ -491,16 +491,16 @@
       const card = document.createElement("div");
       card.className = "contact-card";
       card.innerHTML = `
+        ${c.bankerType ? `<span class="badge badge-corner">${c.bankerType}</span>` : ""}
         <div class="card-top">
           ${logoHtml(c)}
           <div class="card-top-text">
-            ${c.bankerType ? `<span class="badge">${c.bankerType}</span>` : ""}
             <div class="name">${escapeHtml(c.name)}</div>
-            ${c.role ? `<div class="role">${escapeHtml(c.role)}</div>` : ""}
+            <div class="phone">${escapeHtml(formatPhoneDisplay(c.phone))}</div>
           </div>
         </div>
+        ${c.role ? `<div class="role">${escapeHtml(c.role)}</div>` : ""}
         <div class="company">${escapeHtml(c.company)}</div>
-        <div class="phone">${escapeHtml(formatPhoneDisplay(c.phone))}</div>
         ${starsInputHtml(c.rating)}
         ${c.rating >= 4 ? `<span class="badge-recommended">Recommended</span>` : ""}
         ${c.review ? `<div class="review">"${escapeHtml(c.review)}"</div>` : ""}

@@ -198,6 +198,7 @@ select:focus, input:focus, textarea:focus {
 }
 
 .contact-card {
+  position: relative;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 14px;
@@ -205,6 +206,12 @@ select:focus, input:focus, textarea:focus {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.badge-corner {
+  position: absolute;
+  top: 12px;
+  right: 12px;
 }
 
 .card-top {
@@ -216,6 +223,7 @@ select:focus, input:focus, textarea:focus {
 .card-top-text {
   min-width: 0;
   flex: 1;
+  padding-right: 88px;
 }
 
 .company-logo {
