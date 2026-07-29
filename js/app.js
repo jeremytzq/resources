@@ -199,7 +199,7 @@
     const badge = els.dataSourceBadge;
     badge.classList.remove("connected", "error");
     if (mode === "server") {
-      badge.textContent = "Shared Google Sheet (live for everyone)";
+      badge.textContent = "Live for Everyone";
       badge.classList.add("connected");
     } else if (mode === "sheet-direct") {
       badge.textContent = "Google Sheet connected (this browser)";
