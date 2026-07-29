@@ -13,7 +13,7 @@
  */
 
 var SHEET_NAME = 'Contacts';
-var HEADERS = ['id', 'category', 'company', 'logoUrl', 'bankerType', 'name', 'role', 'phone', 'notes'];
+var HEADERS = ['id', 'category', 'company', 'logoUrl', 'bankerType', 'name', 'role', 'rating', 'review', 'phone', 'notes'];
 
 function getSheet() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -108,19 +108,19 @@ function seedSampleData() {
   }
 
   var samples = [
-    { id: 'seed-1', category: 'banker', company: 'DBS Bank', logoUrl: 'https://logo.clearbit.com/dbs.com', bankerType: 'Residential', name: 'Alicia Tan', role: 'Mortgage Relationship Manager', phone: '+6591234567', notes: 'Handles residential home loan packages.' },
-    { id: 'seed-2', category: 'banker', company: 'DBS Bank', logoUrl: 'https://logo.clearbit.com/dbs.com', bankerType: 'Commercial', name: 'Marcus Lim', role: 'Commercial Banking Manager', phone: '+6591234568', notes: 'Handles commercial and industrial property loans.' },
-    { id: 'seed-3', category: 'banker', company: 'OCBC Bank', logoUrl: 'https://logo.clearbit.com/ocbc.com', bankerType: 'Residential', name: 'Rachel Koh', role: 'Home Loan Specialist', phone: '+6591234569', notes: '' },
-    { id: 'seed-4', category: 'banker', company: 'UOB', logoUrl: 'https://logo.clearbit.com/uob.com', bankerType: 'Commercial', name: 'Daniel Ng', role: 'SME Banking Manager', phone: '+6591234570', notes: '' },
-    { id: 'seed-5', category: 'law_firm', company: 'Rajah & Tann Singapore LLP', logoUrl: 'https://logo.clearbit.com/rajahtannasia.com', name: 'Priya Sharma', role: 'Conveyancing Lawyer', phone: '+6591234571', notes: 'Property conveyancing and title transfers.' },
-    { id: 'seed-6', category: 'law_firm', company: 'Allen & Gledhill LLP', logoUrl: 'https://logo.clearbit.com/allenandgledhill.com', name: 'Wei Jie Chua', role: 'Partner, Corporate Law', phone: '+6591234572', notes: '' },
-    { id: 'seed-7', category: 'corporate_secretary', company: 'Corp Sec Partners Pte Ltd', name: 'Michelle Wong', role: 'Corporate Secretary', phone: '+6591234573', notes: 'Handles company incorporation and annual filings.' },
-    { id: 'seed-8', category: 'accounting', company: 'Tan & Associates Accounting', name: 'Kevin Teo', role: 'Chartered Accountant', phone: '+6591234574', notes: 'Bookkeeping and tax filing for SMEs.' },
-    { id: 'seed-9', category: 'accounting', company: 'Grant Thornton Singapore', logoUrl: 'https://logo.clearbit.com/grantthornton.sg', name: 'Serene Goh', role: 'Audit Associate', phone: '+6591234575', notes: '' },
-    { id: 'seed-10', category: 'property_partner', company: 'PropNex Realty', logoUrl: 'https://logo.clearbit.com/propnex.com', name: 'Farhan Ismail', role: 'Property Agent', phone: '+6591234576', notes: 'Residential resale and rental specialist.' },
-    { id: 'seed-11', category: 'property_partner', company: 'Knight Frank Singapore', logoUrl: 'https://logo.clearbit.com/knightfrank.com.sg', name: 'Josephine Lee', role: 'Commercial Property Consultant', phone: '+6591234577', notes: '' },
-    { id: 'seed-12', category: 'interior_designer', company: 'Design Atelier', name: 'Bryan Ho', role: 'Principal Interior Designer', phone: '+6591234578', notes: 'Residential renovation and space planning.' },
-    { id: 'seed-13', category: 'mortgage_broker', company: 'Loan Advisor SG', name: 'Nurul Aini', role: 'Mortgage Broker', phone: '+6591234579', notes: 'Compares packages across multiple banks.' }
+    { id: 'seed-1', category: 'banker', company: 'DBS Bank', logoUrl: 'https://logo.clearbit.com/dbs.com', bankerType: 'Residential', name: 'Alicia Tan', role: 'Mortgage Relationship Manager', rating: 5, review: 'Very responsive, secured a great rate and closed fast.', phone: '+6591234567', notes: 'Handles residential home loan packages.' },
+    { id: 'seed-2', category: 'banker', company: 'DBS Bank', logoUrl: 'https://logo.clearbit.com/dbs.com', bankerType: 'Commercial', name: 'Marcus Lim', role: 'Commercial Banking Manager', rating: 4, review: 'Solid for commercial loans, slightly slower turnaround.', phone: '+6591234568', notes: 'Handles commercial and industrial property loans.' },
+    { id: 'seed-3', category: 'banker', company: 'OCBC Bank', logoUrl: 'https://logo.clearbit.com/ocbc.com', bankerType: 'Residential', name: 'Rachel Koh', role: 'Home Loan Specialist', rating: 4, review: 'Good rates, communicates clearly.', phone: '+6591234569', notes: '' },
+    { id: 'seed-4', category: 'banker', company: 'UOB', logoUrl: 'https://logo.clearbit.com/uob.com', bankerType: 'Commercial', name: 'Daniel Ng', role: 'SME Banking Manager', rating: 3, review: 'Decent but paperwork-heavy process.', phone: '+6591234570', notes: '' },
+    { id: 'seed-5', category: 'law_firm', company: 'Rajah & Tann Singapore LLP', logoUrl: 'https://logo.clearbit.com/rajahtannasia.com', name: 'Priya Sharma', role: 'Conveyancing Lawyer', rating: 5, review: 'Meticulous and fast on conveyancing, highly recommend.', phone: '+6591234571', notes: 'Property conveyancing and title transfers.' },
+    { id: 'seed-6', category: 'law_firm', company: 'Allen & Gledhill LLP', logoUrl: 'https://logo.clearbit.com/allenandgledhill.com', name: 'Wei Jie Chua', role: 'Partner, Corporate Law', rating: 4, review: 'Strong on corporate matters, premium pricing.', phone: '+6591234572', notes: '' },
+    { id: 'seed-7', category: 'corporate_secretary', company: 'Corp Sec Partners Pte Ltd', name: 'Michelle Wong', role: 'Corporate Secretary', rating: 4, review: 'Reliable for annual filings, good reminders before deadlines.', phone: '+6591234573', notes: 'Handles company incorporation and annual filings.' },
+    { id: 'seed-8', category: 'accounting', company: 'Tan & Associates Accounting', name: 'Kevin Teo', role: 'Chartered Accountant', rating: 3, review: 'Fine for straightforward bookkeeping, slower during tax season.', phone: '+6591234574', notes: 'Bookkeeping and tax filing for SMEs.' },
+    { id: 'seed-9', category: 'accounting', company: 'Grant Thornton Singapore', logoUrl: 'https://logo.clearbit.com/grantthornton.sg', name: 'Serene Goh', role: 'Audit Associate', rating: 5, review: 'Thorough and well organised for audits.', phone: '+6591234575', notes: '' },
+    { id: 'seed-10', category: 'property_partner', company: 'PropNex Realty', logoUrl: 'https://logo.clearbit.com/propnex.com', name: 'Farhan Ismail', role: 'Property Agent', rating: 5, review: 'Excellent negotiator, sold above asking twice.', phone: '+6591234576', notes: 'Residential resale and rental specialist.' },
+    { id: 'seed-11', category: 'property_partner', company: 'Knight Frank Singapore', logoUrl: 'https://logo.clearbit.com/knightfrank.com.sg', name: 'Josephine Lee', role: 'Commercial Property Consultant', rating: 4, review: 'Strong commercial network, good market insight.', phone: '+6591234577', notes: '' },
+    { id: 'seed-12', category: 'interior_designer', company: 'Design Atelier', name: 'Bryan Ho', role: 'Principal Interior Designer', rating: 2, review: 'Nice concepts but consistently behind schedule.', phone: '+6591234578', notes: 'Residential renovation and space planning.' },
+    { id: 'seed-13', category: 'mortgage_broker', company: 'Loan Advisor SG', name: 'Nurul Aini', role: 'Mortgage Broker', rating: 5, review: 'Compares packages honestly, saved us a lot on refinancing.', phone: '+6591234579', notes: 'Compares packages across multiple banks.' }
   ];
 
   samples.forEach(function (contact) { upsertContact(sheet, contact); });

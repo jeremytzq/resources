@@ -93,6 +93,23 @@
         </div>
 
         <div class="field-group">
+          <label for="formRating">Rating</label>
+          <select id="formRating">
+            <option value="">Not yet rated</option>
+            <option value="5">★★★★★ Excellent</option>
+            <option value="4">★★★★☆ Good / Recommended</option>
+            <option value="3">★★★☆☆ Average</option>
+            <option value="2">★★☆☆☆ Below average</option>
+            <option value="1">★☆☆☆☆ Poor</option>
+          </select>
+        </div>
+
+        <div class="field-group">
+          <label for="formReview">Review (optional)</label>
+          <textarea id="formReview" rows="2" placeholder="e.g. Responsive, closed the deal quickly"></textarea>
+        </div>
+
+        <div class="field-group">
           <label for="formNotes">Notes</label>
           <textarea id="formNotes" rows="2"></textarea>
         </div>
@@ -105,6 +122,27 @@
     </div>
   </div>
 
+  <div id="passcodeOverlay" class="modal-overlay hidden">
+    <div class="modal modal-small">
+      <div class="modal-header">
+        <h2>Enter Passcode</h2>
+        <button id="closePasscodeBtn" class="btn-icon" aria-label="Close">&times;</button>
+      </div>
+      <p class="settings-help">This action is restricted. Enter the dashboard passcode to continue.</p>
+      <form id="passcodeForm">
+        <div class="field-group">
+          <label for="passcodeInput">Passcode</label>
+          <input type="password" id="passcodeInput" autocomplete="off" required>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="cancelPasscodeBtn" class="btn btn-ghost">Cancel</button>
+          <button type="submit" class="btn btn-primary">Unlock</button>
+        </div>
+      </form>
+      <p id="passcodeStatus" class="settings-status"></p>
+    </div>
+  </div>
+
   <div id="settingsOverlay" class="modal-overlay hidden">
     <div class="modal">
       <div class="modal-header">
@@ -114,8 +152,9 @@
       <p class="settings-help">
         Paste the Web App URL from your deployed Google Apps Script (see
         <code>google-apps-script/Code.gs</code> and the README for setup steps).
-        Contacts will then be read from and written to that Google Sheet instead
-        of this browser's local storage.
+        This is only needed for local/manual testing — when deployed on Vercel
+        with <code>SHEETS_API_URL</code> configured, the dashboard connects to
+        the shared Google Sheet automatically for every visitor.
       </p>
       <form id="settingsForm">
         <div class="field-group">

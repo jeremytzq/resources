@@ -3,7 +3,10 @@
 
   const STORAGE_KEY = "resourceDashboard.contacts.v1";
   const SHEETS_URL_KEY = "resourceDashboard.sheetsApiUrl";
+  const PASSCODE_KEY = "resourceDashboard.passcode";
   const DATA_URL = "data/contacts.json";
+  const API_CONTACTS_URL = "/api/contacts";
+  const API_AUTH_URL = "/api/settings-auth";
 
   const CATEGORIES = [
     { id: "banker", label: "Banker", hasBankerType: true },
@@ -26,6 +29,8 @@
   };
 
   let contacts = [];
+  let dataSourceMode = "local"; // "server" | "sheet-direct" | "local"
+  let passcodeResolve = null;
 
   const state = {
     category: "",
@@ -56,6 +61,8 @@
     formName: document.getElementById("formName"),
     formRole: document.getElementById("formRole"),
     formLogoUrl: document.getElementById("formLogoUrl"),
+    formRating: document.getElementById("formRating"),
+    formReview: document.getElementById("formReview"),
     formPhone: document.getElementById("formPhone"),
     formNotes: document.getElementById("formNotes"),
     deleteContactBtn: document.getElementById("deleteContactBtn"),
@@ -67,7 +74,76 @@
     sheetsUrlInput: document.getElementById("sheetsUrlInput"),
     disconnectSheetBtn: document.getElementById("disconnectSheetBtn"),
     settingsStatus: document.getElementById("settingsStatus"),
+    passcodeOverlay: document.getElementById("passcodeOverlay"),
+    passcodeForm: document.getElementById("passcodeForm"),
+    passcodeInput: document.getElementById("passcodeInput"),
+    passcodeStatus: document.getElementById("passcodeStatus"),
+    closePasscodeBtn: document.getElementById("closePasscodeBtn"),
+    cancelPasscodeBtn: document.getElementById("cancelPasscodeBtn"),
   };
+
+  // ---------- Passcode gate (protects Settings + add/edit/delete) ----------
+
+  function getPasscode() {
+    return sessionStorage.getItem(PASSCODE_KEY) || "";
+  }
+
+  function ensureUnlocked() {
+    if (getPasscode()) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      passcodeResolve = resolve;
+      els.passcodeInput.value = "";
+      els.passcodeStatus.textContent = "";
+      els.passcodeStatus.className = "settings-status";
+      els.passcodeOverlay.classList.remove("hidden");
+      els.passcodeInput.focus();
+    });
+  }
+
+  function resolvePasscode(result) {
+    els.passcodeOverlay.classList.add("hidden");
+    if (passcodeResolve) {
+      passcodeResolve(result);
+      passcodeResolve = null;
+    }
+  }
+
+  function handlePasscodeSubmit(e) {
+    e.preventDefault();
+    const value = els.passcodeInput.value;
+    els.passcodeStatus.textContent = "Checking…";
+    els.passcodeStatus.className = "settings-status";
+
+    fetch(API_AUTH_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ passcode: value }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (typeof data.ok !== "boolean") throw new Error("unexpected response shape");
+        if (data.ok) {
+          sessionStorage.setItem(PASSCODE_KEY, value);
+          resolvePasscode(true);
+        } else {
+          els.passcodeStatus.textContent = "Incorrect passcode.";
+          els.passcodeStatus.className = "settings-status error";
+        }
+      })
+      .catch(() => {
+        // No serverless function reachable / didn't return a real auth
+        // response (e.g. plain static hosting, local dev) — there's no
+        // server to check against, so allow through locally.
+        sessionStorage.setItem(PASSCODE_KEY, value || "local");
+        resolvePasscode(true);
+      });
+  }
+
+  function handlePasscodeCancel() {
+    resolvePasscode(false);
+  }
+
+  // ---------- Data source (server proxy > direct Sheet > local storage) ----------
 
   function getSheetsUrl() {
     return localStorage.getItem(SHEETS_URL_KEY) || "";
@@ -80,8 +156,11 @@
   function setDataSourceBadge(mode) {
     const badge = els.dataSourceBadge;
     badge.classList.remove("connected", "error");
-    if (mode === "connected") {
-      badge.textContent = "Google Sheet connected";
+    if (mode === "server") {
+      badge.textContent = "Shared Google Sheet (live for everyone)";
+      badge.classList.add("connected");
+    } else if (mode === "sheet-direct") {
+      badge.textContent = "Google Sheet connected (this browser)";
       badge.classList.add("connected");
     } else if (mode === "error") {
       badge.textContent = "Google Sheet unreachable — showing local data";
@@ -91,16 +170,8 @@
     }
   }
 
-  function fetchContactsFromSheet() {
-    return fetch(`${getSheetsUrl()}?action=list`)
-      .then((res) => res.json())
-      .then((data) => {
-        contacts = (data.contacts || []).map(normalizeSheetContact);
-        setDataSourceBadge("connected");
-      });
-  }
-
   function normalizeSheetContact(row) {
+    const rating = parseInt(row.rating, 10);
     return {
       id: String(row.id),
       category: row.category || "",
@@ -109,31 +180,45 @@
       bankerType: row.bankerType || undefined,
       name: row.name || "",
       role: row.role || "",
+      rating: Number.isFinite(rating) && rating > 0 ? rating : undefined,
+      review: row.review || "",
       phone: String(row.phone || ""),
       notes: row.notes || "",
     };
   }
 
-  function postToSheet(payload) {
-    return fetch(getSheetsUrl(), {
-      method: "POST",
-      body: JSON.stringify(payload),
-    })
-      .then((res) => res.json())
+  function loadContacts() {
+    return fetch(API_CONTACTS_URL)
+      .then((res) => {
+        if (!res.ok) throw new Error("no server proxy");
+        return res.json();
+      })
       .then((data) => {
-        contacts = (data.contacts || []).map(normalizeSheetContact);
-        setDataSourceBadge("connected");
-      });
+        if (data.error || !("contacts" in data)) throw new Error(data.error || "bad response");
+        contacts = data.contacts.map(normalizeSheetContact);
+        dataSourceMode = "server";
+        setDataSourceBadge("server");
+      })
+      .catch(() => loadContactsWithoutServer());
   }
 
-  function loadContacts() {
+  function loadContactsWithoutServer() {
     if (isSheetsConnected()) {
-      return fetchContactsFromSheet().catch(() => {
-        contacts = [];
-        setDataSourceBadge("error");
-      });
+      return fetch(`${getSheetsUrl()}?action=list`)
+        .then((res) => res.json())
+        .then((data) => {
+          contacts = (data.contacts || []).map(normalizeSheetContact);
+          dataSourceMode = "sheet-direct";
+          setDataSourceBadge("sheet-direct");
+        })
+        .catch(() => {
+          contacts = [];
+          dataSourceMode = "sheet-direct";
+          setDataSourceBadge("error");
+        });
     }
 
+    dataSourceMode = "local";
     setDataSourceBadge("local");
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
@@ -156,8 +241,49 @@
   }
 
   function saveContacts() {
-    if (isSheetsConnected()) return;
+    if (dataSourceMode !== "local") return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(contacts));
+  }
+
+  function persistChange(action, contactOrId) {
+    if (dataSourceMode === "server") {
+      const body = { action, passcode: getPasscode() };
+      if (action === "delete") body.id = contactOrId;
+      else body.contact = contactOrId;
+
+      return fetch(API_CONTACTS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) throw new Error(data.error);
+          contacts = (data.contacts || []).map(normalizeSheetContact);
+        });
+    }
+
+    if (dataSourceMode === "sheet-direct") {
+      const body = { action };
+      if (action === "delete") body.id = contactOrId;
+      else body.contact = contactOrId;
+
+      return fetch(getSheetsUrl(), { method: "POST", body: JSON.stringify(body) })
+        .then((res) => res.json())
+        .then((data) => {
+          contacts = (data.contacts || []).map(normalizeSheetContact);
+        });
+    }
+
+    if (action === "delete") {
+      contacts = contacts.filter((c) => c.id !== contactOrId);
+    } else {
+      const idx = contacts.findIndex((c) => c.id === contactOrId.id);
+      if (idx >= 0) contacts[idx] = contactOrId;
+      else contacts.push(contactOrId);
+    }
+    saveContacts();
+    return Promise.resolve();
   }
 
   function uniqueSorted(values) {
@@ -260,6 +386,13 @@
     return `<div class="company-logo initials" style="background:${color}">${escapeHtml(initials)}</div>`;
   }
 
+  function starsHtml(rating) {
+    if (!rating) return `<span class="stars unrated">Not yet rated</span>`;
+    const full = "★".repeat(rating);
+    const empty = "☆".repeat(5 - rating);
+    return `<span class="stars">${full}${empty}</span>`;
+  }
+
   function whatsappLink(phone, name) {
     const digits = phone.replace(/[^\d]/g, "");
     const text = encodeURIComponent(`Hi ${name}, `);
@@ -267,16 +400,18 @@
   }
 
   function filteredContacts() {
-    return contacts.filter((c) => {
-      if (state.category && c.category !== state.category) return false;
-      if (state.company && c.company !== state.company) return false;
-      if (state.bankerType && c.bankerType !== state.bankerType) return false;
-      if (state.search) {
-        const haystack = `${c.name} ${c.company} ${c.role || ""}`.toLowerCase();
-        if (!haystack.includes(state.search.toLowerCase())) return false;
-      }
-      return true;
-    });
+    return contacts
+      .filter((c) => {
+        if (state.category && c.category !== state.category) return false;
+        if (state.company && c.company !== state.company) return false;
+        if (state.bankerType && c.bankerType !== state.bankerType) return false;
+        if (state.search) {
+          const haystack = `${c.name} ${c.company} ${c.role || ""}`.toLowerCase();
+          if (!haystack.includes(state.search.toLowerCase())) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => (b.rating || 0) - (a.rating || 0) || a.name.localeCompare(b.name));
   }
 
   function renderResults() {
@@ -316,13 +451,20 @@
         </div>
         <div class="company">${escapeHtml(c.company)}</div>
         <div class="phone">${escapeHtml(c.phone)}</div>
+        ${starsHtml(c.rating)}
+        ${c.rating >= 4 ? `<span class="badge-recommended">Recommended</span>` : ""}
+        ${c.review ? `<div class="review">"${escapeHtml(c.review)}"</div>` : ""}
         ${c.notes ? `<div class="notes">${escapeHtml(c.notes)}</div>` : ""}
         <div class="card-actions">
           <a class="btn-whatsapp" target="_blank" rel="noopener" href="${whatsappLink(c.phone, c.name)}">WhatsApp</a>
           <button class="btn-edit" data-id="${c.id}">Edit</button>
         </div>
       `;
-      card.querySelector(".btn-edit").addEventListener("click", () => openModal(c));
+      card.querySelector(".btn-edit").addEventListener("click", () => {
+        ensureUnlocked().then((ok) => {
+          if (ok) openModal(c);
+        });
+      });
       els.contactList.appendChild(card);
     });
   }
@@ -361,6 +503,8 @@
       els.formLogoUrl.value = contact.logoUrl || "";
       els.formName.value = contact.name;
       els.formRole.value = contact.role || "";
+      els.formRating.value = contact.rating || "";
+      els.formReview.value = contact.review || "";
       els.formPhone.value = contact.phone;
       els.formNotes.value = contact.notes || "";
       els.deleteContactBtn.classList.remove("hidden");
@@ -392,6 +536,7 @@
     const isNew = !els.contactId.value;
     const id = els.contactId.value || `c-${Date.now()}`;
     const category = els.formCategory.value;
+    const ratingValue = parseInt(els.formRating.value, 10);
     const record = {
       id,
       category,
@@ -400,35 +545,25 @@
       bankerType: categoryHasBankerType(category) ? els.formBankerType.value : undefined,
       name: els.formName.value.trim(),
       role: els.formRole.value.trim(),
+      rating: Number.isFinite(ratingValue) && ratingValue > 0 ? ratingValue : undefined,
+      review: els.formReview.value.trim(),
       phone: els.formPhone.value.trim(),
       notes: els.formNotes.value.trim(),
     };
 
     const submitBtn = els.contactForm.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Saving…";
 
-    if (isSheetsConnected()) {
-      submitBtn.disabled = true;
-      submitBtn.textContent = "Saving…";
-      postToSheet({ action: isNew ? "create" : "update", contact: record })
-        .then(refreshAfterChange)
-        .catch(() => {
-          alert("Could not save to the Google Sheet. Check your connection and try again.");
-        })
-        .finally(() => {
-          submitBtn.disabled = false;
-          submitBtn.textContent = "Save Contact";
-        });
-      return;
-    }
-
-    const existingIndex = contacts.findIndex((c) => c.id === id);
-    if (existingIndex >= 0) {
-      contacts[existingIndex] = record;
-    } else {
-      contacts.push(record);
-    }
-    saveContacts();
-    refreshAfterChange();
+    persistChange(isNew ? "create" : "update", record)
+      .then(refreshAfterChange)
+      .catch(() => {
+        alert("Could not save this contact. Check your connection/passcode and try again.");
+      })
+      .finally(() => {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Save Contact";
+      });
   }
 
   function handleDelete() {
@@ -436,18 +571,11 @@
     if (!id) return;
     if (!confirm("Delete this contact?")) return;
 
-    if (isSheetsConnected()) {
-      postToSheet({ action: "delete", id })
-        .then(refreshAfterChange)
-        .catch(() => {
-          alert("Could not delete from the Google Sheet. Check your connection and try again.");
-        });
-      return;
-    }
-
-    contacts = contacts.filter((c) => c.id !== id);
-    saveContacts();
-    refreshAfterChange();
+    persistChange("delete", id)
+      .then(refreshAfterChange)
+      .catch(() => {
+        alert("Could not delete this contact. Check your connection/passcode and try again.");
+      });
   }
 
   function bindEvents() {
@@ -475,7 +603,11 @@
       renderResults();
     });
 
-    els.addContactBtn.addEventListener("click", () => openModal(null));
+    els.addContactBtn.addEventListener("click", () => {
+      ensureUnlocked().then((ok) => {
+        if (ok) openModal(null);
+      });
+    });
     els.closeModalBtn.addEventListener("click", closeModal);
     els.modalOverlay.addEventListener("click", (e) => {
       if (e.target === els.modalOverlay) closeModal();
@@ -484,13 +616,24 @@
     els.contactForm.addEventListener("submit", handleFormSubmit);
     els.deleteContactBtn.addEventListener("click", handleDelete);
 
-    els.settingsBtn.addEventListener("click", openSettings);
+    els.settingsBtn.addEventListener("click", () => {
+      ensureUnlocked().then((ok) => {
+        if (ok) openSettings();
+      });
+    });
     els.closeSettingsBtn.addEventListener("click", closeSettings);
     els.settingsOverlay.addEventListener("click", (e) => {
       if (e.target === els.settingsOverlay) closeSettings();
     });
     els.settingsForm.addEventListener("submit", handleSettingsSubmit);
     els.disconnectSheetBtn.addEventListener("click", handleDisconnectSheet);
+
+    els.passcodeForm.addEventListener("submit", handlePasscodeSubmit);
+    els.closePasscodeBtn.addEventListener("click", handlePasscodeCancel);
+    els.cancelPasscodeBtn.addEventListener("click", handlePasscodeCancel);
+    els.passcodeOverlay.addEventListener("click", (e) => {
+      if (e.target === els.passcodeOverlay) handlePasscodeCancel();
+    });
   }
 
   function openSettings() {
@@ -522,7 +665,8 @@
         if (!("contacts" in data)) throw new Error("Unexpected response");
         localStorage.setItem(SHEETS_URL_KEY, url);
         contacts = data.contacts.map(normalizeSheetContact);
-        setDataSourceBadge("connected");
+        dataSourceMode = "sheet-direct";
+        setDataSourceBadge("sheet-direct");
         els.settingsStatus.textContent = "Connected!";
         els.settingsStatus.className = "settings-status success";
         state.category = "";
