@@ -2,6 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "resourceDashboard.contacts.v1";
+  const SHEETS_URL_KEY = "resourceDashboard.sheetsApiUrl";
   const DATA_URL = "data/contacts.json";
 
   const CATEGORIES = [
@@ -58,9 +59,82 @@
     formPhone: document.getElementById("formPhone"),
     formNotes: document.getElementById("formNotes"),
     deleteContactBtn: document.getElementById("deleteContactBtn"),
+    dataSourceBadge: document.getElementById("dataSourceBadge"),
+    settingsBtn: document.getElementById("settingsBtn"),
+    settingsOverlay: document.getElementById("settingsOverlay"),
+    closeSettingsBtn: document.getElementById("closeSettingsBtn"),
+    settingsForm: document.getElementById("settingsForm"),
+    sheetsUrlInput: document.getElementById("sheetsUrlInput"),
+    disconnectSheetBtn: document.getElementById("disconnectSheetBtn"),
+    settingsStatus: document.getElementById("settingsStatus"),
   };
 
+  function getSheetsUrl() {
+    return localStorage.getItem(SHEETS_URL_KEY) || "";
+  }
+
+  function isSheetsConnected() {
+    return !!getSheetsUrl();
+  }
+
+  function setDataSourceBadge(mode) {
+    const badge = els.dataSourceBadge;
+    badge.classList.remove("connected", "error");
+    if (mode === "connected") {
+      badge.textContent = "Google Sheet connected";
+      badge.classList.add("connected");
+    } else if (mode === "error") {
+      badge.textContent = "Google Sheet unreachable — showing local data";
+      badge.classList.add("error");
+    } else {
+      badge.textContent = "Local storage only";
+    }
+  }
+
+  function fetchContactsFromSheet() {
+    return fetch(`${getSheetsUrl()}?action=list`)
+      .then((res) => res.json())
+      .then((data) => {
+        contacts = (data.contacts || []).map(normalizeSheetContact);
+        setDataSourceBadge("connected");
+      });
+  }
+
+  function normalizeSheetContact(row) {
+    return {
+      id: String(row.id),
+      category: row.category || "",
+      company: row.company || "",
+      logoUrl: row.logoUrl || undefined,
+      bankerType: row.bankerType || undefined,
+      name: row.name || "",
+      role: row.role || "",
+      phone: String(row.phone || ""),
+      notes: row.notes || "",
+    };
+  }
+
+  function postToSheet(payload) {
+    return fetch(getSheetsUrl(), {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        contacts = (data.contacts || []).map(normalizeSheetContact);
+        setDataSourceBadge("connected");
+      });
+  }
+
   function loadContacts() {
+    if (isSheetsConnected()) {
+      return fetchContactsFromSheet().catch(() => {
+        contacts = [];
+        setDataSourceBadge("error");
+      });
+    }
+
+    setDataSourceBadge("local");
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       try {
@@ -82,6 +156,7 @@
   }
 
   function saveContacts() {
+    if (isSheetsConnected()) return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(contacts));
   }
 
@@ -304,8 +379,17 @@
     els.modalOverlay.classList.add("hidden");
   }
 
+  function refreshAfterChange() {
+    closeModal();
+    populateCategorySelect();
+    els.categorySelect.value = state.category;
+    renderDynamicFields();
+    renderResults();
+  }
+
   function handleFormSubmit(e) {
     e.preventDefault();
+    const isNew = !els.contactId.value;
     const id = els.contactId.value || `c-${Date.now()}`;
     const category = els.formCategory.value;
     const record = {
@@ -320,6 +404,23 @@
       notes: els.formNotes.value.trim(),
     };
 
+    const submitBtn = els.contactForm.querySelector('button[type="submit"]');
+
+    if (isSheetsConnected()) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Saving…";
+      postToSheet({ action: isNew ? "create" : "update", contact: record })
+        .then(refreshAfterChange)
+        .catch(() => {
+          alert("Could not save to the Google Sheet. Check your connection and try again.");
+        })
+        .finally(() => {
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Save Contact";
+        });
+      return;
+    }
+
     const existingIndex = contacts.findIndex((c) => c.id === id);
     if (existingIndex >= 0) {
       contacts[existingIndex] = record;
@@ -327,22 +428,26 @@
       contacts.push(record);
     }
     saveContacts();
-    closeModal();
-    populateCategorySelect();
-    els.categorySelect.value = state.category;
-    renderDynamicFields();
-    renderResults();
+    refreshAfterChange();
   }
 
   function handleDelete() {
     const id = els.contactId.value;
     if (!id) return;
     if (!confirm("Delete this contact?")) return;
+
+    if (isSheetsConnected()) {
+      postToSheet({ action: "delete", id })
+        .then(refreshAfterChange)
+        .catch(() => {
+          alert("Could not delete from the Google Sheet. Check your connection and try again.");
+        });
+      return;
+    }
+
     contacts = contacts.filter((c) => c.id !== id);
     saveContacts();
-    closeModal();
-    renderDynamicFields();
-    renderResults();
+    refreshAfterChange();
   }
 
   function bindEvents() {
@@ -378,6 +483,70 @@
     els.formCategory.addEventListener("change", updateFormCompanyOptions);
     els.contactForm.addEventListener("submit", handleFormSubmit);
     els.deleteContactBtn.addEventListener("click", handleDelete);
+
+    els.settingsBtn.addEventListener("click", openSettings);
+    els.closeSettingsBtn.addEventListener("click", closeSettings);
+    els.settingsOverlay.addEventListener("click", (e) => {
+      if (e.target === els.settingsOverlay) closeSettings();
+    });
+    els.settingsForm.addEventListener("submit", handleSettingsSubmit);
+    els.disconnectSheetBtn.addEventListener("click", handleDisconnectSheet);
+  }
+
+  function openSettings() {
+    els.sheetsUrlInput.value = getSheetsUrl();
+    els.settingsStatus.textContent = "";
+    els.settingsStatus.className = "settings-status";
+    els.settingsOverlay.classList.remove("hidden");
+  }
+
+  function closeSettings() {
+    els.settingsOverlay.classList.add("hidden");
+  }
+
+  function handleSettingsSubmit(e) {
+    e.preventDefault();
+    const url = els.sheetsUrlInput.value.trim();
+    if (!url) {
+      els.settingsStatus.textContent = "Enter a Web App URL, or use Disconnect to go back to local storage.";
+      els.settingsStatus.className = "settings-status error";
+      return;
+    }
+
+    els.settingsStatus.textContent = "Connecting…";
+    els.settingsStatus.className = "settings-status";
+
+    fetch(`${url}?action=list`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!("contacts" in data)) throw new Error("Unexpected response");
+        localStorage.setItem(SHEETS_URL_KEY, url);
+        contacts = data.contacts.map(normalizeSheetContact);
+        setDataSourceBadge("connected");
+        els.settingsStatus.textContent = "Connected!";
+        els.settingsStatus.className = "settings-status success";
+        state.category = "";
+        state.company = "";
+        state.bankerType = "";
+        els.categorySelect.value = "";
+        renderDynamicFields();
+        renderResults();
+        setTimeout(closeSettings, 700);
+      })
+      .catch(() => {
+        els.settingsStatus.textContent = "Could not connect. Double-check the deployed Web App URL and its access setting.";
+        els.settingsStatus.className = "settings-status error";
+      });
+  }
+
+  function handleDisconnectSheet() {
+    localStorage.removeItem(SHEETS_URL_KEY);
+    closeSettings();
+    loadContacts().then(() => {
+      populateCategorySelect();
+      renderDynamicFields();
+      renderResults();
+    });
   }
 
   loadContacts().then(() => {

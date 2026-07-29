@@ -13,9 +13,33 @@ A lightweight, no-build web app for looking up contacts for the partners you wor
 
 ## Data & persistence
 
+By default, the dashboard runs in **local mode**:
+
 - Sample contacts live in `data/contacts.json` and are loaded the first time you open the app.
-- After that, all contacts (including anything you add/edit/delete) are stored in the browser's `localStorage`, so changes persist across reloads on the same browser/device.
+- After that, all contacts (including anything you add/edit/delete) are stored in the browser's `localStorage`, so changes persist across reloads on the same browser/device only — nothing is shared across browsers or devices.
 - To reset back to the sample data, clear this site's local storage (or open dev tools → Application → Local Storage → delete the `resourceDashboard.contacts.v1` key) and reload.
+
+For a real shared database, connect it to a **Google Sheet** instead (see below) — then every add/edit/delete goes straight to the Sheet, and the Sheet becomes the single source of truth across any browser/device.
+
+## Connecting to a Google Sheet
+
+The dashboard can use a Google Sheet as its database via a small Google Apps Script Web App (no separate server or hosting needed — Google hosts the script for you).
+
+1. Go to [sheets.google.com](https://sheets.google.com) and create a new blank spreadsheet (e.g. name it "Resource Dashboard Contacts").
+2. In the Sheet, open **Extensions → Apps Script**.
+3. Delete the default placeholder code and paste in the contents of [`google-apps-script/Code.gs`](google-apps-script/Code.gs) from this repo.
+4. Save the project (e.g. name it "Resource Dashboard API").
+5. *(Optional)* To start with the same sample contacts as local mode: in the Apps Script editor, select the `seedSampleData` function from the function dropdown and click **Run**. Approve the permission prompts (it only needs access to this one spreadsheet).
+6. Click **Deploy → New deployment**.
+   - Select type: **Web app**.
+   - Execute as: **Me**.
+   - Who has access: **Anyone**. (This is required so the dashboard page can call it without asking each visitor to sign in with Google — treat the resulting URL like a password: anyone who has it can read/write this sheet, so don't share it publicly.)
+7. Click **Deploy**, approve the authorization prompts, then copy the **Web app URL** (it ends in `/exec`).
+8. Back in the dashboard, click **⚙ Settings** in the top bar, paste the URL into **Apps Script Web App URL**, and click **Save & Connect**.
+
+Once connected, the badge next to Settings shows "Google Sheet connected", and you can also open the Sheet directly any time to bulk-edit contacts, add columns for your own use, or share it with teammates via normal Google Sheets sharing.
+
+To go back to local/offline mode, open **⚙ Settings** and click **Disconnect**.
 
 ## Running locally
 

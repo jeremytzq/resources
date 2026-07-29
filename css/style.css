@@ -48,6 +48,62 @@ body {
   margin: 0;
 }
 
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-small {
+  padding: 7px 10px;
+  font-size: 0.82rem;
+  width: auto;
+}
+
+.data-source-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: var(--text-muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.data-source-badge.connected {
+  color: #0f9d58;
+  background: rgba(15, 157, 88, 0.1);
+  border-color: rgba(15, 157, 88, 0.3);
+}
+
+.data-source-badge.error {
+  color: var(--danger);
+  background: rgba(220, 38, 38, 0.1);
+  border-color: rgba(220, 38, 38, 0.3);
+}
+
+.settings-help {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.settings-help code {
+  background: var(--bg);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.settings-status {
+  font-size: 0.85rem;
+  min-height: 1.2em;
+  margin: 10px 0 0;
+}
+
+.settings-status.error { color: var(--danger); }
+.settings-status.success { color: #0f9d58; }
+
 .container {
   display: grid;
   grid-template-columns: 320px 1fr;

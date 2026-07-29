@@ -9,7 +9,11 @@
 <body>
   <header class="topbar">
     <h1>Resource Dashboard</h1>
-    <button id="addContactBtn" class="btn btn-primary">+ Add Contact</button>
+    <div class="topbar-actions">
+      <span id="dataSourceBadge" class="data-source-badge"></span>
+      <button id="settingsBtn" class="btn btn-ghost btn-small" title="Connect to Google Sheet">⚙ Settings</button>
+      <button id="addContactBtn" class="btn btn-primary">+ Add Contact</button>
+    </div>
   </header>
 
   <main class="container">
@@ -98,6 +102,32 @@
           <button type="submit" class="btn btn-primary">Save Contact</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <div id="settingsOverlay" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Google Sheet Connection</h2>
+        <button id="closeSettingsBtn" class="btn-icon" aria-label="Close">&times;</button>
+      </div>
+      <p class="settings-help">
+        Paste the Web App URL from your deployed Google Apps Script (see
+        <code>google-apps-script/Code.gs</code> and the README for setup steps).
+        Contacts will then be read from and written to that Google Sheet instead
+        of this browser's local storage.
+      </p>
+      <form id="settingsForm">
+        <div class="field-group">
+          <label for="sheetsUrlInput">Apps Script Web App URL</label>
+          <input type="url" id="sheetsUrlInput" placeholder="https://script.google.com/macros/s/…/exec">
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="disconnectSheetBtn" class="btn btn-danger">Disconnect</button>
+          <button type="submit" class="btn btn-primary">Save & Connect</button>
+        </div>
+      </form>
+      <p id="settingsStatus" class="settings-status"></p>
     </div>
   </div>
 
