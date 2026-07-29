@@ -176,6 +176,24 @@
         </div>
       </form>
       <p id="settingsStatus" class="settings-status"></p>
+
+      <hr class="settings-divider">
+
+      <h3 class="settings-subheading">Manage Resource Types</h3>
+      <p class="settings-help">
+        Add new resource types (e.g. "Photographer") for the dashboard's dropdown.
+        A resource type can only be deleted once no contacts are using it.
+      </p>
+      <div id="categoryManagerList" class="category-manager-list"></div>
+      <form id="addCategoryForm" class="category-add-form">
+        <input type="text" id="newCategoryLabel" placeholder="New resource type name" required>
+        <label class="checkbox-label">
+          <input type="checkbox" id="newCategoryHasBankerType">
+          Has a Residential/Commercial split (like Banker)
+        </label>
+        <button type="submit" class="btn btn-primary btn-small">Add resource type</button>
+      </form>
+      <p id="categoryManagerStatus" class="settings-status"></p>
     </div>
   </div>
 

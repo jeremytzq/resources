@@ -5,38 +5,50 @@
  * Setup:
  *   1. Create a Google Sheet.
  *   2. Extensions > Apps Script, replace the default code with this file.
- *   3. (Optional) Run seedSampleData once from the editor to populate sample rows.
+ *   3. (Optional) Run seedSampleData / seedCategories once from the editor
+ *      to populate sample rows.
  *   4. Deploy > New deployment > Web app.
  *        Execute as: Me
  *        Who has access: Anyone
  *   5. Copy the deployed /exec URL into the dashboard's Settings panel.
  */
 
-var SHEET_NAME = 'Contacts';
-var HEADERS = ['id', 'category', 'company', 'logoUrl', 'bankerType', 'name', 'role', 'rating', 'review', 'phone', 'notes'];
+var CONTACTS_SHEET_NAME = 'Contacts';
+var CONTACTS_HEADERS = ['id', 'category', 'company', 'logoUrl', 'bankerType', 'name', 'role', 'rating', 'review', 'phone', 'notes'];
 
-function getSheet() {
+var CATEGORIES_SHEET_NAME = 'Categories';
+var CATEGORIES_HEADERS = ['id', 'label', 'hasBankerType'];
+
+function getNamedSheet(name) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(SHEET_NAME);
+  var sheet = ss.getSheetByName(name);
   if (!sheet) {
-    sheet = ss.insertSheet(SHEET_NAME);
+    sheet = ss.insertSheet(name);
   }
   return sheet;
 }
 
+function getSheet() {
+  return getNamedSheet(CONTACTS_SHEET_NAME);
+}
+
+function getCategoriesSheet() {
+  return getNamedSheet(CATEGORIES_SHEET_NAME);
+}
+
 /**
- * Reads the sheet's actual header row and appends any HEADERS fields it's
- * missing (e.g. rating/review added to the schema after the sheet was
- * first created), without touching existing columns or data. Every
+ * Reads a sheet's actual header row and appends any of the given fields
+ * it's missing (e.g. a schema field added after the sheet was first
+ * created), without touching existing columns or data. Every read/write
  * function below looks up a field's column position from this returned
- * array rather than assuming the HEADERS constant's order matches the
- * physical sheet — those two can drift on a sheet created before a schema
- * change, which previously caused writes to land in the wrong column.
+ * array rather than assuming a fixed order — those two can drift on a
+ * sheet created before a schema change, which previously caused writes to
+ * land in the wrong column.
  */
-function ensureHeaders(sheet) {
+function ensureSheetHeaders(sheet, fields) {
   var lastCol = sheet.getLastColumn();
   var existing = lastCol > 0 ? sheet.getRange(1, 1, 1, lastCol).getValues()[0] : [];
-  var missing = HEADERS.filter(function (h) { return existing.indexOf(h) === -1; });
+  var missing = fields.filter(function (h) { return existing.indexOf(h) === -1; });
   if (missing.length > 0) {
     sheet.getRange(1, existing.length + 1, 1, missing.length).setValues([missing]);
     existing = existing.concat(missing);
@@ -44,8 +56,15 @@ function ensureHeaders(sheet) {
   return existing;
 }
 
-function readContacts(sheet) {
-  var headers = ensureHeaders(sheet);
+function ensureHeaders(sheet) {
+  return ensureSheetHeaders(sheet, CONTACTS_HEADERS);
+}
+
+function ensureCategoryHeaders(sheet) {
+  return ensureSheetHeaders(sheet, CATEGORIES_HEADERS);
+}
+
+function readRows(sheet, headers) {
   var data = sheet.getDataRange().getValues();
   data.shift(); // drop header row
   return data
@@ -57,29 +76,80 @@ function readContacts(sheet) {
     });
 }
 
+function readContacts(sheet) {
+  return readRows(sheet, ensureHeaders(sheet));
+}
+
+function readCategories(sheet) {
+  return readRows(sheet, ensureCategoryHeaders(sheet));
+}
+
+var DEFAULT_CATEGORY_SEEDS = [
+  { id: 'banker', label: 'Banker', hasBankerType: true },
+  { id: 'law_firm', label: 'Law Firm', hasBankerType: false },
+  { id: 'corporate_secretary', label: 'Corporate Secretary', hasBankerType: false },
+  { id: 'accounting', label: 'Accounting Services', hasBankerType: false },
+  { id: 'property_partner', label: 'Aircon Services', hasBankerType: false },
+  { id: 'interior_designer', label: 'Renovation', hasBankerType: false },
+  { id: 'mortgage_broker', label: 'Mortgage Broker', hasBankerType: false },
+  { id: 'cleaning', label: 'Cleaning', hasBankerType: false },
+  { id: 'parquet', label: 'Parquet', hasBankerType: false },
+];
+
+/**
+ * If the Categories sheet is completely empty (a fresh sheet, or one
+ * created before resource-type management existed), seed it with the
+ * dashboard's default resource types exactly once. This runs on every
+ * request but is a no-op the moment the sheet has any row, so "empty
+ * because unseeded" and "empty because the user deleted everything" are
+ * never confused — after this first seed, the sheet is always the single
+ * source of truth and deletions stick.
+ */
+function ensureCategoriesSeeded(sheet) {
+  if (readCategories(sheet).length === 0) {
+    DEFAULT_CATEGORY_SEEDS.forEach(function (cat) { upsertCategory(sheet, cat); });
+  }
+}
+
 function jsonResponse(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
 function doGet(e) {
-  var sheet = getSheet();
-  return jsonResponse({ contacts: readContacts(sheet) });
+  var categoriesSheet = getCategoriesSheet();
+  ensureCategoriesSeeded(categoriesSheet);
+  return jsonResponse({
+    contacts: readContacts(getSheet()),
+    categories: readCategories(categoriesSheet),
+  });
 }
 
 function doPost(e) {
   var payload = JSON.parse(e.postData.contents);
-  var sheet = getSheet();
+  var contactsSheet = getSheet();
+  var categoriesSheet = getCategoriesSheet();
+  ensureCategoriesSeeded(categoriesSheet);
+  var error = null;
 
   if (payload.action === 'create' || payload.action === 'update') {
-    upsertContact(sheet, payload.contact);
+    upsertContact(contactsSheet, payload.contact);
   } else if (payload.action === 'delete') {
-    deleteContact(sheet, payload.id);
+    deleteContact(contactsSheet, payload.id);
   } else if (payload.action === 'rate') {
-    updateRating(sheet, payload.id, payload.rating, payload.review);
+    updateRating(contactsSheet, payload.id, payload.rating, payload.review);
+  } else if (payload.action === 'createCategory' || payload.action === 'updateCategory') {
+    upsertCategory(categoriesSheet, payload.category);
+  } else if (payload.action === 'deleteCategory') {
+    error = deleteCategory(categoriesSheet, contactsSheet, payload.id);
   }
 
-  return jsonResponse({ contacts: readContacts(sheet) });
+  var result = {
+    contacts: readContacts(contactsSheet),
+    categories: readCategories(categoriesSheet),
+  };
+  if (error) result.error = error;
+  return jsonResponse(result);
 }
 
 /**
@@ -150,6 +220,55 @@ function deleteContact(sheet, id) {
   }
 }
 
+function upsertCategory(sheet, category) {
+  var headers = ensureCategoryHeaders(sheet);
+  var idCol = headers.indexOf('id');
+  var data = sheet.getDataRange().getValues();
+  var targetRow = -1;
+
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][idCol]) === String(category.id)) {
+      targetRow = i + 1;
+      break;
+    }
+  }
+  if (targetRow === -1) {
+    targetRow = sheet.getLastRow() + 1;
+  }
+
+  var row = headers.map(function (h) {
+    return category[h] !== undefined && category[h] !== null ? category[h] : '';
+  });
+
+  sheet.getRange(targetRow, 1, 1, row.length).setValues([row]);
+}
+
+/**
+ * Refuses to delete a category that any contact still references, so
+ * contacts can never end up silently orphaned under a resource type that
+ * no longer appears in the dashboard. Returns an error string on failure,
+ * or null on success.
+ */
+function deleteCategory(categoriesSheet, contactsSheet, id) {
+  var contacts = readContacts(contactsSheet);
+  var inUse = contacts.some(function (c) { return c.category === id; });
+  if (inUse) {
+    return 'Cannot delete this resource type — it still has contacts assigned to it.';
+  }
+
+  var headers = ensureCategoryHeaders(categoriesSheet);
+  var idCol = headers.indexOf('id');
+  var data = categoriesSheet.getDataRange().getValues();
+
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][idCol]) === String(id)) {
+      categoriesSheet.deleteRow(i + 1);
+      break;
+    }
+  }
+  return null;
+}
+
 /**
  * Optional one-time helper: run this once from the Apps Script editor
  * (Run > seedSampleData) to populate the sheet with the same sample
@@ -179,4 +298,19 @@ function seedSampleData() {
   ];
 
   samples.forEach(function (contact) { upsertContact(sheet, contact); });
+}
+
+/**
+ * Optional manual helper — the Categories sheet actually seeds itself
+ * automatically on first request (see ensureCategoriesSeeded), so you
+ * shouldn't normally need this. It's here in case you want to force a
+ * reseed onto an empty sheet without waiting for a request.
+ */
+function seedCategories() {
+  var sheet = getCategoriesSheet();
+  var existing = readCategories(sheet);
+  if (existing.length > 0) {
+    throw new Error('Categories sheet already has data — clear it first if you want to reseed.');
+  }
+  DEFAULT_CATEGORY_SEEDS.forEach(function (category) { upsertCategory(sheet, category); });
 }

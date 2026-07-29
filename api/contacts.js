@@ -8,11 +8,14 @@ function timingSafeEqualStr(a, b) {
 }
 
 /**
- * Proxies the dashboard's contact reads/writes to the Google Apps Script
- * Web App backing the shared Google Sheet. The Sheet URL never reaches the
- * browser: it lives only in the SHEETS_API_URL server environment variable.
+ * Proxies the dashboard's contact AND resource-type (category) reads/
+ * writes to the Google Apps Script Web App backing the shared Google
+ * Sheet. The Sheet URL never reaches the browser: it lives only in the
+ * SHEETS_API_URL server environment variable.
  *
- * Reads (GET) are open to any visitor. Writes (POST: create/update/delete)
+ * Reads (GET) are open to any visitor and return both `contacts` and
+ * `categories`. Writes (POST: create/update/delete for contacts, and
+ * createCategory/updateCategory/deleteCategory for resource types)
  * require a `passcode` field matching the SETTINGS_PASSCODE environment
  * variable, checked here on the server so the real secret is never shipped
  * to the client.

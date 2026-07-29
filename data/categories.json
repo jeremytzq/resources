@@ -1,0 +1,11 @@
+[
+  { "id": "banker", "label": "Banker", "hasBankerType": true },
+  { "id": "law_firm", "label": "Law Firm" },
+  { "id": "corporate_secretary", "label": "Corporate Secretary" },
+  { "id": "accounting", "label": "Accounting Services" },
+  { "id": "property_partner", "label": "Aircon Services" },
+  { "id": "interior_designer", "label": "Renovation" },
+  { "id": "mortgage_broker", "label": "Mortgage Broker" },
+  { "id": "cleaning", "label": "Cleaning" },
+  { "id": "parquet", "label": "Parquet" }
+]

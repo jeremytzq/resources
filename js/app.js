@@ -2,31 +2,66 @@
   "use strict";
 
   const STORAGE_KEY = "resourceDashboard.contacts.v1";
+  const CATEGORIES_STORAGE_KEY = "resourceDashboard.categories.v1";
   const SHEETS_URL_KEY = "resourceDashboard.sheetsApiUrl";
   const PASSCODE_KEY = "resourceDashboard.passcode";
   const DATA_URL = "data/contacts.json";
+  const CATEGORIES_DATA_URL = "data/categories.json";
   const API_CONTACTS_URL = "/api/contacts";
   const API_AUTH_URL = "/api/settings-auth";
 
-  const CATEGORIES = [
+  // Used as a safety net if the connected Sheet's "Categories" tab is
+  // empty (e.g. not seeded yet) or unreachable, so the dashboard never
+  // shows a blank resource-type list. Once real categories exist anywhere
+  // (a Sheet, or this browser's local storage), they take over.
+  const DEFAULT_CATEGORIES = [
     { id: "banker", label: "Banker", hasBankerType: true },
-    { id: "law_firm", label: "Law Firm" },
-    { id: "corporate_secretary", label: "Corporate Secretary" },
-    { id: "accounting", label: "Accounting Services" },
-    { id: "property_partner", label: "Property Agent / Partner" },
-    { id: "interior_designer", label: "Interior Designer (ID)" },
-    { id: "mortgage_broker", label: "Mortgage Broker" },
+    { id: "law_firm", label: "Law Firm", hasBankerType: false },
+    { id: "corporate_secretary", label: "Corporate Secretary", hasBankerType: false },
+    { id: "accounting", label: "Accounting Services", hasBankerType: false },
+    { id: "property_partner", label: "Aircon Services", hasBankerType: false },
+    { id: "interior_designer", label: "Renovation", hasBankerType: false },
+    { id: "mortgage_broker", label: "Mortgage Broker", hasBankerType: false },
+    { id: "cleaning", label: "Cleaning", hasBankerType: false },
+    { id: "parquet", label: "Parquet", hasBankerType: false },
   ];
 
+  let categories = [];
+
   const categoryLabel = (id) => {
-    const cat = CATEGORIES.find((c) => c.id === id);
+    const cat = categories.find((c) => c.id === id);
     return cat ? cat.label : id;
   };
 
   const categoryHasBankerType = (id) => {
-    const cat = CATEGORIES.find((c) => c.id === id);
+    const cat = categories.find((c) => c.id === id);
     return !!(cat && cat.hasBankerType);
   };
+
+  // Guarantees every category a contact actually references is selectable,
+  // even if the loaded category list is empty or missing one — this is
+  // the only thing standing between an unseeded/older Categories sheet and
+  // contacts silently disappearing from the resource-type dropdown.
+  function mergeCategoriesWithFallback(loaded) {
+    const list = loaded.length ? loaded.slice() : DEFAULT_CATEGORIES.slice();
+    const ids = new Set(list.map((c) => c.id));
+    contacts.forEach((c) => {
+      if (c.category && !ids.has(c.category)) {
+        const fallback = DEFAULT_CATEGORIES.find((d) => d.id === c.category);
+        list.push(fallback || { id: c.category, label: c.category, hasBankerType: false });
+        ids.add(c.category);
+      }
+    });
+    return list;
+  }
+
+  function normalizeCategory(row) {
+    return {
+      id: String(row.id),
+      label: row.label || row.id,
+      hasBankerType: row.hasBankerType === true || String(row.hasBankerType).toLowerCase() === "true",
+    };
+  }
 
   let contacts = [];
   let dataSourceMode = "local"; // "server" | "sheet-direct" | "local"
@@ -76,6 +111,11 @@
     sheetsUrlInput: document.getElementById("sheetsUrlInput"),
     disconnectSheetBtn: document.getElementById("disconnectSheetBtn"),
     settingsStatus: document.getElementById("settingsStatus"),
+    categoryManagerList: document.getElementById("categoryManagerList"),
+    addCategoryForm: document.getElementById("addCategoryForm"),
+    newCategoryLabel: document.getElementById("newCategoryLabel"),
+    newCategoryHasBankerType: document.getElementById("newCategoryHasBankerType"),
+    categoryManagerStatus: document.getElementById("categoryManagerStatus"),
     passcodeOverlay: document.getElementById("passcodeOverlay"),
     passcodeForm: document.getElementById("passcodeForm"),
     passcodeInput: document.getElementById("passcodeInput"),
@@ -198,6 +238,7 @@
       .then((data) => {
         if (data.error || !("contacts" in data)) throw new Error(data.error || "bad response");
         contacts = data.contacts.map(normalizeSheetContact);
+        categories = mergeCategoriesWithFallback((data.categories || []).map(normalizeCategory));
         dataSourceMode = "server";
         setDataSourceBadge("server");
       })
@@ -210,11 +251,13 @@
         .then((res) => res.json())
         .then((data) => {
           contacts = (data.contacts || []).map(normalizeSheetContact);
+          categories = mergeCategoriesWithFallback((data.categories || []).map(normalizeCategory));
           dataSourceMode = "sheet-direct";
           setDataSourceBadge("sheet-direct");
         })
         .catch(() => {
           contacts = [];
+          categories = DEFAULT_CATEGORIES.slice();
           dataSourceMode = "sheet-direct";
           setDataSourceBadge("error");
         });
@@ -222,29 +265,38 @@
 
     dataSourceMode = "local";
     setDataSourceBadge("local");
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        contacts = JSON.parse(stored);
-        return Promise.resolve();
-      } catch (e) {
-        /* fall through to fetch seed data */
-      }
-    }
-    return fetch(DATA_URL)
-      .then((res) => res.json())
-      .then((seed) => {
-        contacts = seed;
-        saveContacts();
+
+    const storedContacts = localStorage.getItem(STORAGE_KEY);
+    const contactsPromise = storedContacts
+      ? Promise.resolve(JSON.parse(storedContacts))
+      : fetch(DATA_URL).then((res) => res.json());
+
+    const storedCategories = localStorage.getItem(CATEGORIES_STORAGE_KEY);
+    const categoriesPromise = storedCategories
+      ? Promise.resolve(JSON.parse(storedCategories))
+      : fetch(CATEGORIES_DATA_URL).then((res) => res.json());
+
+    return Promise.all([contactsPromise, categoriesPromise])
+      .then(([loadedContacts, loadedCategories]) => {
+        contacts = loadedContacts;
+        categories = mergeCategoriesWithFallback(loadedCategories);
+        if (!storedContacts) saveContacts();
+        if (!storedCategories) saveCategories();
       })
       .catch(() => {
         contacts = [];
+        categories = DEFAULT_CATEGORIES.slice();
       });
   }
 
   function saveContacts() {
     if (dataSourceMode !== "local") return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(contacts));
+  }
+
+  function saveCategories() {
+    if (dataSourceMode !== "local") return;
+    localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(categories));
   }
 
   function persistChange(action, contactOrId) {
@@ -286,6 +338,66 @@
     }
     saveContacts();
     return Promise.resolve();
+  }
+
+  function persistCategoryChange(action, categoryOrId) {
+    if (dataSourceMode === "server") {
+      const body = { action, passcode: getPasscode() };
+      if (action === "deleteCategory") body.id = categoryOrId;
+      else body.category = categoryOrId;
+
+      return fetch(API_CONTACTS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          contacts = (data.contacts || []).map(normalizeSheetContact);
+          categories = mergeCategoriesWithFallback((data.categories || []).map(normalizeCategory));
+          if (data.error) throw new Error(data.error);
+        });
+    }
+
+    if (dataSourceMode === "sheet-direct") {
+      const body = { action };
+      if (action === "deleteCategory") body.id = categoryOrId;
+      else body.category = categoryOrId;
+
+      return fetch(getSheetsUrl(), { method: "POST", body: JSON.stringify(body) })
+        .then((res) => res.json())
+        .then((data) => {
+          contacts = (data.contacts || []).map(normalizeSheetContact);
+          categories = mergeCategoriesWithFallback((data.categories || []).map(normalizeCategory));
+          if (data.error) throw new Error(data.error);
+        });
+    }
+
+    if (action === "deleteCategory") {
+      const inUse = contacts.some((c) => c.category === categoryOrId);
+      if (inUse) {
+        return Promise.reject(new Error("Cannot delete this resource type — it still has contacts assigned to it."));
+      }
+      categories = categories.filter((c) => c.id !== categoryOrId);
+    } else {
+      const idx = categories.findIndex((c) => c.id === categoryOrId.id);
+      if (idx >= 0) categories[idx] = categoryOrId;
+      else categories.push(categoryOrId);
+    }
+    saveCategories();
+    return Promise.resolve();
+  }
+
+  function slugifyCategoryLabel(label) {
+    let id = label.toLowerCase().trim().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+    if (!id) id = "category";
+    let candidate = id;
+    let n = 2;
+    while (categories.some((c) => c.id === candidate)) {
+      candidate = `${id}_${n}`;
+      n++;
+    }
+    return candidate;
   }
 
   // Rating is intentionally not passcode-gated: anyone viewing the
@@ -337,11 +449,76 @@
   function populateCategorySelect() {
     els.categorySelect.innerHTML =
       '<option value="">Select a resource type…</option>' +
-      CATEGORIES.map((c) => `<option value="${c.id}">${c.label}</option>`).join("");
+      categories.map((c) => `<option value="${c.id}">${escapeHtml(c.label)}</option>`).join("");
 
-    els.formCategory.innerHTML = CATEGORIES.map(
-      (c) => `<option value="${c.id}">${c.label}</option>`
-    ).join("");
+    els.formCategory.innerHTML = categories
+      .map((c) => `<option value="${c.id}">${escapeHtml(c.label)}</option>`)
+      .join("");
+  }
+
+  function renderCategoryManager() {
+    els.categoryManagerList.innerHTML = categories
+      .map(
+        (c) => `
+          <div class="category-row">
+            <span>${escapeHtml(c.label)}${c.hasBankerType ? " <em>(Residential/Commercial split)</em>" : ""}</span>
+            <button type="button" class="btn-delete-category" data-id="${escapeHtml(c.id)}">Delete</button>
+          </div>
+        `
+      )
+      .join("");
+
+    els.categoryManagerList.querySelectorAll(".btn-delete-category").forEach((btn) => {
+      btn.addEventListener("click", () => handleDeleteCategory(btn.dataset.id));
+    });
+  }
+
+  function handleDeleteCategory(id) {
+    const cat = categories.find((c) => c.id === id);
+    if (!cat) return;
+    if (!confirm(`Delete resource type "${cat.label}"?`)) return;
+
+    persistCategoryChange("deleteCategory", id)
+      .then(() => {
+        renderCategoryManager();
+        populateCategorySelect();
+        if (state.category === id) {
+          state.category = "";
+          els.categorySelect.value = "";
+          renderDynamicFields();
+        }
+        renderResults();
+        els.categoryManagerStatus.textContent = `Deleted "${cat.label}".`;
+        els.categoryManagerStatus.className = "settings-status success";
+      })
+      .catch((err) => {
+        els.categoryManagerStatus.textContent = err.message || "Could not delete this resource type.";
+        els.categoryManagerStatus.className = "settings-status error";
+      });
+  }
+
+  function handleAddCategorySubmit(e) {
+    e.preventDefault();
+    const label = els.newCategoryLabel.value.trim();
+    if (!label) return;
+    const hasBankerType = els.newCategoryHasBankerType.checked;
+    const id = slugifyCategoryLabel(label);
+
+    els.categoryManagerStatus.textContent = "Adding…";
+    els.categoryManagerStatus.className = "settings-status";
+
+    persistCategoryChange("createCategory", { id, label, hasBankerType })
+      .then(() => {
+        renderCategoryManager();
+        populateCategorySelect();
+        els.addCategoryForm.reset();
+        els.categoryManagerStatus.textContent = `Added "${label}".`;
+        els.categoryManagerStatus.className = "settings-status success";
+      })
+      .catch((err) => {
+        els.categoryManagerStatus.textContent = err.message || "Could not add this resource type.";
+        els.categoryManagerStatus.className = "settings-status error";
+      });
   }
 
   function renderDynamicFields() {
@@ -569,7 +746,7 @@
     } else {
       els.modalTitle.textContent = "Add Contact";
       els.contactId.value = "";
-      els.formCategory.value = state.category || CATEGORIES[0].id;
+      els.formCategory.value = state.category || (categories[0] ? categories[0].id : "");
       updateFormCompanyOptions();
       if (state.company) els.formCompany.value = state.company;
       els.deleteContactBtn.classList.add("hidden");
@@ -692,6 +869,7 @@
     });
     els.settingsForm.addEventListener("submit", handleSettingsSubmit);
     els.disconnectSheetBtn.addEventListener("click", handleDisconnectSheet);
+    els.addCategoryForm.addEventListener("submit", handleAddCategorySubmit);
 
     els.passcodeForm.addEventListener("submit", handlePasscodeSubmit);
     els.closePasscodeBtn.addEventListener("click", handlePasscodeCancel);
@@ -705,6 +883,9 @@
     els.sheetsUrlInput.value = getSheetsUrl();
     els.settingsStatus.textContent = "";
     els.settingsStatus.className = "settings-status";
+    els.categoryManagerStatus.textContent = "";
+    els.categoryManagerStatus.className = "settings-status";
+    renderCategoryManager();
     els.settingsOverlay.classList.remove("hidden");
   }
 
@@ -730,6 +911,7 @@
         if (!("contacts" in data)) throw new Error("Unexpected response");
         localStorage.setItem(SHEETS_URL_KEY, url);
         contacts = data.contacts.map(normalizeSheetContact);
+        categories = mergeCategoriesWithFallback((data.categories || []).map(normalizeCategory));
         dataSourceMode = "sheet-direct";
         setDataSourceBadge("sheet-direct");
         els.settingsStatus.textContent = "Connected!";
@@ -738,6 +920,8 @@
         state.company = "";
         state.bankerType = "";
         els.categorySelect.value = "";
+        populateCategorySelect();
+        renderCategoryManager();
         renderDynamicFields();
         renderResults();
         setTimeout(closeSettings, 700);
