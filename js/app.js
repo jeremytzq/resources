@@ -286,6 +286,40 @@
     return Promise.resolve();
   }
 
+  // Rating is intentionally not passcode-gated: anyone viewing the
+  // dashboard can rate a contact. Only the rating itself is writable this
+  // way — every other field still requires the passcode-gated edit form.
+  function submitRating(contactId, rating) {
+    if (dataSourceMode === "server") {
+      return fetch(API_CONTACTS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "rate", id: contactId, rating }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) throw new Error(data.error);
+          contacts = (data.contacts || []).map(normalizeSheetContact);
+        });
+    }
+
+    if (dataSourceMode === "sheet-direct") {
+      return fetch(getSheetsUrl(), {
+        method: "POST",
+        body: JSON.stringify({ action: "rate", id: contactId, rating }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          contacts = (data.contacts || []).map(normalizeSheetContact);
+        });
+    }
+
+    const idx = contacts.findIndex((c) => c.id === contactId);
+    if (idx >= 0) contacts[idx] = { ...contacts[idx], rating };
+    saveContacts();
+    return Promise.resolve();
+  }
+
   function uniqueSorted(values) {
     return Array.from(new Set(values.filter(Boolean))).sort((a, b) =>
       a.localeCompare(b)
@@ -386,11 +420,12 @@
     return `<div class="company-logo initials" style="background:${color}">${escapeHtml(initials)}</div>`;
   }
 
-  function starsHtml(rating) {
-    if (!rating) return `<span class="stars unrated">Not yet rated</span>`;
-    const full = "★".repeat(rating);
-    const empty = "☆".repeat(5 - rating);
-    return `<span class="stars">${full}${empty}</span>`;
+  function starsInputHtml(rating) {
+    const stars = [1, 2, 3, 4, 5]
+      .map((n) => `<span class="star${n <= rating ? " filled" : ""}" data-value="${n}">★</span>`)
+      .join("");
+    const label = rating ? "" : `<span class="stars-hint">Rate this contact</span>`;
+    return `<div class="stars-input">${stars}${label}</div>`;
   }
 
   function whatsappLink(phone, name) {
@@ -451,7 +486,7 @@
         </div>
         <div class="company">${escapeHtml(c.company)}</div>
         <div class="phone">${escapeHtml(c.phone)}</div>
-        ${starsHtml(c.rating)}
+        ${starsInputHtml(c.rating)}
         ${c.rating >= 4 ? `<span class="badge-recommended">Recommended</span>` : ""}
         ${c.review ? `<div class="review">"${escapeHtml(c.review)}"</div>` : ""}
         ${c.notes ? `<div class="notes">${escapeHtml(c.notes)}</div>` : ""}
@@ -463,6 +498,14 @@
       card.querySelector(".btn-edit").addEventListener("click", () => {
         ensureUnlocked().then((ok) => {
           if (ok) openModal(c);
+        });
+      });
+      card.querySelectorAll(".stars-input .star").forEach((star) => {
+        star.addEventListener("click", () => {
+          const value = parseInt(star.dataset.value, 10);
+          submitRating(c.id, value)
+            .then(renderResults)
+            .catch(() => alert("Could not save the rating. Check your connection and try again."));
         });
       });
       els.contactList.appendChild(card);

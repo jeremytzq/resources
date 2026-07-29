@@ -13,17 +13,18 @@ A lightweight web app for looking up contacts for the partners you work with —
 
 ## Access model
 
-- **Viewing contacts and messaging via WhatsApp** is open to anyone who has the dashboard link.
-- **Adding, editing, or deleting a contact, and the ⚙ Settings panel**, are locked behind a passcode. The first time you try either, you'll be asked to unlock — after that it stays unlocked for the rest of your browser session (until you close the tab).
+- **Viewing contacts, star-rating them, and messaging via WhatsApp** is open to anyone who has the dashboard link — no passcode needed, including clicking the stars on a card to rate a contact.
+- **Adding, editing, or deleting a contact (including its written review), and the ⚙ Settings panel**, are locked behind a passcode. The first time you try either, you'll be asked to unlock — after that it stays unlocked for the rest of your browser session (until you close the tab).
 - When deployed on Vercel (see below), that passcode is checked **on the server**, using the `SETTINGS_PASSCODE` environment variable — it's never shipped to the browser, so it can't be read out of the page source. Every write request is re-checked server-side too, not just the initial unlock prompt.
+- The rating action is deliberately narrow: even a hand-crafted request only ever accepts a contact id and a 1–5 rating for that action, and anything else in the request is ignored — it can't be used to change a contact's name, company, phone, or review.
 - If you're running the app locally/statically without the Vercel functions available (e.g. via `python3 -m http.server`), there's no server to check the passcode against, so the app just unlocks locally — this mode is for your own machine only anyway.
 
 ## Ratings
 
 Each contact can have:
 
-- A **1–5 star rating** (or "Not yet rated").
-- A short **review** (e.g. "Very responsive, closed the deal fast").
+- A **1–5 star rating** — click directly on the stars on any card to set or change it. Open to anyone viewing the dashboard, no passcode required.
+- A short **review** (e.g. "Very responsive, closed the deal fast") — set via the passcode-gated Add/Edit form, alongside the rest of the contact's details.
 
 Contacts are listed best-rated first within each resource type, and a green **Recommended** tag appears automatically for anyone rated 4★ or 5★, so you can see at a glance who's worth going back to.
 

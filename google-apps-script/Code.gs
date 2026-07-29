@@ -55,9 +55,34 @@ function doPost(e) {
     upsertContact(sheet, payload.contact);
   } else if (payload.action === 'delete') {
     deleteContact(sheet, payload.id);
+  } else if (payload.action === 'rate') {
+    updateRating(sheet, payload.id, payload.rating, payload.review);
   }
 
   return jsonResponse({ contacts: readContacts(sheet) });
+}
+
+/**
+ * Updates only the rating/review columns for an existing row, leaving
+ * every other field untouched. This is the one write action the dashboard
+ * allows without its passcode, so it deliberately can't touch anything
+ * else about a contact.
+ */
+function updateRating(sheet, id, rating, review) {
+  var data = sheet.getDataRange().getValues();
+  var idCol = HEADERS.indexOf('id');
+  var ratingCol = HEADERS.indexOf('rating');
+  var reviewCol = HEADERS.indexOf('review');
+
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][idCol]) === String(id)) {
+      sheet.getRange(i + 1, ratingCol + 1).setValue(rating || '');
+      if (review !== undefined && review !== null) {
+        sheet.getRange(i + 1, reviewCol + 1).setValue(review);
+      }
+      break;
+    }
+  }
 }
 
 function upsertContact(sheet, contact) {

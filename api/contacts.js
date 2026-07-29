@@ -16,6 +16,12 @@ function timingSafeEqualStr(a, b) {
  * require a `passcode` field matching the SETTINGS_PASSCODE environment
  * variable, checked here on the server so the real secret is never shipped
  * to the client.
+ *
+ * The one exception is action "rate": anyone can rate a contact without a
+ * passcode. To make sure that can't be abused to change anything else,
+ * the payload forwarded to Apps Script for "rate" is rebuilt here from
+ * scratch with only `id` and a clamped `rating` — whatever else a caller
+ * puts in the request body is ignored.
  */
 module.exports = async (req, res) => {
   const sheetsUrl = process.env.SHEETS_API_URL;
@@ -36,18 +42,30 @@ module.exports = async (req, res) => {
   }
 
   if (req.method === "POST") {
-    const configuredPasscode = process.env.SETTINGS_PASSCODE;
-    const submitted = req.body && req.body.passcode;
+    const body = req.body || {};
+    let forwardBody = body;
 
-    if (!configuredPasscode || !submitted || !timingSafeEqualStr(submitted, configuredPasscode)) {
-      res.status(401).json({ error: "Invalid passcode." });
-      return;
+    if (body.action === "rate") {
+      const ratingNum = parseInt(body.rating, 10);
+      forwardBody = {
+        action: "rate",
+        id: String(body.id || ""),
+        rating: Number.isFinite(ratingNum) ? Math.max(1, Math.min(5, ratingNum)) : "",
+      };
+    } else {
+      const configuredPasscode = process.env.SETTINGS_PASSCODE;
+      const submitted = body.passcode;
+
+      if (!configuredPasscode || !submitted || !timingSafeEqualStr(submitted, configuredPasscode)) {
+        res.status(401).json({ error: "Invalid passcode." });
+        return;
+      }
     }
 
     try {
       const response = await fetch(sheetsUrl, {
         method: "POST",
-        body: JSON.stringify(req.body),
+        body: JSON.stringify(forwardBody),
       });
       const data = await response.json();
       res.status(200).json(data);
