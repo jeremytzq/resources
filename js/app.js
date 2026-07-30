@@ -650,6 +650,22 @@
     }
   }
 
+  // Strips whitespace from the phone field as the user types or pastes,
+  // preserving cursor position so it doesn't jump to the end mid-edit.
+  function stripSpacesFromPhoneInput(el) {
+    if (!/\s/.test(el.value)) return;
+    const cursor = el.selectionStart;
+    const spacesBefore = (el.value.slice(0, cursor).match(/\s/g) || []).length;
+    el.value = el.value.replace(/\s/g, "");
+    const newCursor = cursor - spacesBefore;
+    el.setSelectionRange(newCursor, newCursor);
+  }
+
+  function handlePhoneInput(e) {
+    stripSpacesFromPhoneInput(e.target);
+    checkPhoneDuplicateInline();
+  }
+
   function filteredContacts() {
     return contacts
       .filter((c) => {
@@ -893,7 +909,7 @@
       if (e.target === els.modalOverlay) closeModal();
     });
     els.formCategory.addEventListener("change", updateFormCompanyOptions);
-    els.formPhone.addEventListener("input", checkPhoneDuplicateInline);
+    els.formPhone.addEventListener("input", handlePhoneInput);
     els.contactForm.addEventListener("submit", handleFormSubmit);
     els.deleteContactBtn.addEventListener("click", handleDelete);
 
