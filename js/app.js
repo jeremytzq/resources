@@ -447,18 +447,23 @@
     );
   }
 
+  function categoriesSortedByLabel() {
+    return categories.slice().sort((a, b) => a.label.localeCompare(b.label));
+  }
+
   function populateCategorySelect() {
+    const sorted = categoriesSortedByLabel();
     els.categorySelect.innerHTML =
       '<option value="">Select a resource type…</option>' +
-      categories.map((c) => `<option value="${c.id}">${escapeHtml(c.label)}</option>`).join("");
+      sorted.map((c) => `<option value="${c.id}">${escapeHtml(c.label)}</option>`).join("");
 
-    els.formCategory.innerHTML = categories
+    els.formCategory.innerHTML = sorted
       .map((c) => `<option value="${c.id}">${escapeHtml(c.label)}</option>`)
       .join("");
   }
 
   function renderCategoryManager() {
-    els.categoryManagerList.innerHTML = categories
+    els.categoryManagerList.innerHTML = categoriesSortedByLabel()
       .map(
         (c) => `
           <div class="category-row">
