@@ -138,6 +138,12 @@ body {
 .settings-status.error { color: var(--danger); }
 .settings-status.success { color: #0f9d58; }
 
+.field-warning {
+  font-size: 0.8rem;
+  color: #b8860b;
+  margin: 0;
+}
+
 .settings-divider {
   border: none;
   border-top: 1px solid var(--border);

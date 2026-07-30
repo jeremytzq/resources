@@ -101,6 +101,7 @@
     formRating: document.getElementById("formRating"),
     formReview: document.getElementById("formReview"),
     formPhone: document.getElementById("formPhone"),
+    phoneDuplicateWarning: document.getElementById("phoneDuplicateWarning"),
     formNotes: document.getElementById("formNotes"),
     deleteContactBtn: document.getElementById("deleteContactBtn"),
     dataSourceBadge: document.getElementById("dataSourceBadge"),
@@ -622,6 +623,33 @@
     return phone;
   }
 
+  // Compares by the last 8 digits (the local mobile number) rather than
+  // the full string, so formatting differences — a missing "+65", spaces,
+  // dashes — don't hide a real duplicate.
+  function phoneCompareKey(phone) {
+    return (phone || "").replace(/\D/g, "").slice(-8);
+  }
+
+  function findDuplicateContact(phone, excludeId) {
+    const key = phoneCompareKey(phone);
+    if (key.length < 8) return null;
+    return (
+      contacts.find((c) => c.id !== excludeId && phoneCompareKey(c.phone) === key) || null
+    );
+  }
+
+  function checkPhoneDuplicateInline() {
+    const excludeId = els.contactId.value || null;
+    const dup = findDuplicateContact(els.formPhone.value, excludeId);
+    if (dup) {
+      els.phoneDuplicateWarning.textContent = `⚠ Already saved for ${dup.name} (${dup.company}).`;
+      els.phoneDuplicateWarning.classList.remove("hidden");
+    } else {
+      els.phoneDuplicateWarning.textContent = "";
+      els.phoneDuplicateWarning.classList.add("hidden");
+    }
+  }
+
   function filteredContacts() {
     return contacts
       .filter((c) => {
@@ -751,6 +779,8 @@
       if (state.company) els.formCompany.value = state.company;
       els.deleteContactBtn.classList.add("hidden");
     }
+    els.phoneDuplicateWarning.textContent = "";
+    els.phoneDuplicateWarning.classList.add("hidden");
     els.modalOverlay.classList.remove("hidden");
   }
 
@@ -785,6 +815,14 @@
       phone: els.formPhone.value.trim(),
       notes: els.formNotes.value.trim(),
     };
+
+    const duplicate = findDuplicateContact(record.phone, isNew ? null : id);
+    if (duplicate) {
+      const proceed = confirm(
+        `This mobile number is already saved for ${duplicate.name} (${duplicate.company}). Add anyway?`
+      );
+      if (!proceed) return;
+    }
 
     const submitBtn = els.contactForm.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
@@ -855,6 +893,7 @@
       if (e.target === els.modalOverlay) closeModal();
     });
     els.formCategory.addEventListener("change", updateFormCompanyOptions);
+    els.formPhone.addEventListener("input", checkPhoneDuplicateInline);
     els.contactForm.addEventListener("submit", handleFormSubmit);
     els.deleteContactBtn.addEventListener("click", handleDelete);
 
