@@ -62,6 +62,8 @@ Whether you use it directly (mode 2) or via the Vercel server proxy (mode 1), th
 
 **If you already had a Sheet set up before `rating`/`review`/resource-type management existed:** just paste the updated `Code.gs` into the same Apps Script project and create a new deployment version (Deploy → Manage deployments → edit → New version) — no need to recreate the Sheet. The code now reads whichever columns actually exist in row 1 and appends new fields to the end automatically the next time it writes, instead of assuming a fixed column order. It also forces the phone cell to plain-text formatting on every write, since Google Sheets can otherwise treat a leading `+` (e.g. `+6591234567`) as the start of a formula and silently strip it. A **Categories** tab is created and auto-seeded with the dashboard's default resource types the first time the updated code runs.
 
+**If your Sheet predates the `aircon_services`/`renovation` category id rename:** after redeploying, run `migrateCategoryIds` once from the Apps Script editor's function dropdown. It rewrites the old `property_partner`/`interior_designer` ids to the new ones in both the Categories and Contacts tabs, so any contacts already saved under those types move over instead of disappearing from the dropdown. Safe to run more than once.
+
 ## Deploying to Vercel (so anyone with the link sees the shared database)
 
 This gives every visitor automatic, live access to the same Google Sheet, with no per-browser setup:

@@ -111,7 +111,7 @@
   },
   {
     "id": "seed-10",
-    "category": "property_partner",
+    "category": "aircon_services",
     "company": "PropNex Realty",
     "logoUrl": "https://logo.clearbit.com/propnex.com",
     "name": "Farhan Ismail",
@@ -123,7 +123,7 @@
   },
   {
     "id": "seed-11",
-    "category": "property_partner",
+    "category": "aircon_services",
     "company": "Knight Frank Singapore",
     "logoUrl": "https://logo.clearbit.com/knightfrank.com.sg",
     "name": "Josephine Lee",
@@ -135,7 +135,7 @@
   },
   {
     "id": "seed-12",
-    "category": "interior_designer",
+    "category": "renovation",
     "company": "Design Atelier",
     "name": "Bryan Ho",
     "role": "Principal Interior Designer",

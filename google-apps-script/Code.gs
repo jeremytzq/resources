@@ -89,8 +89,8 @@ var DEFAULT_CATEGORY_SEEDS = [
   { id: 'law_firm', label: 'Law Firm', hasBankerType: false },
   { id: 'corporate_secretary', label: 'Corporate Secretary', hasBankerType: false },
   { id: 'accounting', label: 'Accounting Services', hasBankerType: false },
-  { id: 'property_partner', label: 'Aircon Services', hasBankerType: false },
-  { id: 'interior_designer', label: 'Renovation', hasBankerType: false },
+  { id: 'aircon_services', label: 'Aircon Services', hasBankerType: false },
+  { id: 'renovation', label: 'Renovation', hasBankerType: false },
   { id: 'mortgage_broker', label: 'Mortgage Broker', hasBankerType: false },
   { id: 'cleaning', label: 'Cleaning', hasBankerType: false },
   { id: 'parquet', label: 'Parquet', hasBankerType: false },
@@ -291,9 +291,9 @@ function seedSampleData() {
     { id: 'seed-7', category: 'corporate_secretary', company: 'Corp Sec Partners Pte Ltd', name: 'Michelle Wong', role: 'Corporate Secretary', rating: 4, review: 'Reliable for annual filings, good reminders before deadlines.', phone: '+6591234573', notes: 'Handles company incorporation and annual filings.' },
     { id: 'seed-8', category: 'accounting', company: 'Tan & Associates Accounting', name: 'Kevin Teo', role: 'Chartered Accountant', rating: 3, review: 'Fine for straightforward bookkeeping, slower during tax season.', phone: '+6591234574', notes: 'Bookkeeping and tax filing for SMEs.' },
     { id: 'seed-9', category: 'accounting', company: 'Grant Thornton Singapore', logoUrl: 'https://logo.clearbit.com/grantthornton.sg', name: 'Serene Goh', role: 'Audit Associate', rating: 5, review: 'Thorough and well organised for audits.', phone: '+6591234575', notes: '' },
-    { id: 'seed-10', category: 'property_partner', company: 'PropNex Realty', logoUrl: 'https://logo.clearbit.com/propnex.com', name: 'Farhan Ismail', role: 'Property Agent', rating: 5, review: 'Excellent negotiator, sold above asking twice.', phone: '+6591234576', notes: 'Residential resale and rental specialist.' },
-    { id: 'seed-11', category: 'property_partner', company: 'Knight Frank Singapore', logoUrl: 'https://logo.clearbit.com/knightfrank.com.sg', name: 'Josephine Lee', role: 'Commercial Property Consultant', rating: 4, review: 'Strong commercial network, good market insight.', phone: '+6591234577', notes: '' },
-    { id: 'seed-12', category: 'interior_designer', company: 'Design Atelier', name: 'Bryan Ho', role: 'Principal Interior Designer', rating: 2, review: 'Nice concepts but consistently behind schedule.', phone: '+6591234578', notes: 'Residential renovation and space planning.' },
+    { id: 'seed-10', category: 'aircon_services', company: 'PropNex Realty', logoUrl: 'https://logo.clearbit.com/propnex.com', name: 'Farhan Ismail', role: 'Property Agent', rating: 5, review: 'Excellent negotiator, sold above asking twice.', phone: '+6591234576', notes: 'Residential resale and rental specialist.' },
+    { id: 'seed-11', category: 'aircon_services', company: 'Knight Frank Singapore', logoUrl: 'https://logo.clearbit.com/knightfrank.com.sg', name: 'Josephine Lee', role: 'Commercial Property Consultant', rating: 4, review: 'Strong commercial network, good market insight.', phone: '+6591234577', notes: '' },
+    { id: 'seed-12', category: 'renovation', company: 'Design Atelier', name: 'Bryan Ho', role: 'Principal Interior Designer', rating: 2, review: 'Nice concepts but consistently behind schedule.', phone: '+6591234578', notes: 'Residential renovation and space planning.' },
     { id: 'seed-13', category: 'mortgage_broker', company: 'Loan Advisor SG', name: 'Nurul Aini', role: 'Mortgage Broker', rating: 5, review: 'Compares packages honestly, saved us a lot on refinancing.', phone: '+6591234579', notes: 'Compares packages across multiple banks.' }
   ];
 
@@ -313,4 +313,43 @@ function seedCategories() {
     throw new Error('Categories sheet already has data — clear it first if you want to reseed.');
   }
   DEFAULT_CATEGORY_SEEDS.forEach(function (category) { upsertCategory(sheet, category); });
+}
+
+/**
+ * One-time migration: run this once from the Apps Script editor (Run >
+ * migrateCategoryIds) after pasting this version of Code.gs, if your
+ * sheet was created before "property_partner" and "interior_designer"
+ * were renamed to "aircon_services" and "renovation". It rewrites the id
+ * in the Categories tab and the category on every matching row in the
+ * Contacts tab, so existing contacts move over instead of being orphaned
+ * under an id no longer in the resource-type list. Safe to run more than
+ * once — rows already renamed are simply left alone the next time.
+ */
+function migrateCategoryIds() {
+  var RENAMES = {
+    'property_partner': 'aircon_services',
+    'interior_designer': 'renovation',
+  };
+
+  var categoriesSheet = getCategoriesSheet();
+  var catHeaders = ensureCategoryHeaders(categoriesSheet);
+  var catIdCol = catHeaders.indexOf('id');
+  var catData = categoriesSheet.getDataRange().getValues();
+  for (var i = 1; i < catData.length; i++) {
+    var oldCatId = String(catData[i][catIdCol]);
+    if (RENAMES[oldCatId]) {
+      categoriesSheet.getRange(i + 1, catIdCol + 1).setValue(RENAMES[oldCatId]);
+    }
+  }
+
+  var contactsSheet = getSheet();
+  var headers = ensureHeaders(contactsSheet);
+  var categoryCol = headers.indexOf('category');
+  var data = contactsSheet.getDataRange().getValues();
+  for (var j = 1; j < data.length; j++) {
+    var oldCategory = String(data[j][categoryCol]);
+    if (RENAMES[oldCategory]) {
+      contactsSheet.getRange(j + 1, categoryCol + 1).setValue(RENAMES[oldCategory]);
+    }
+  }
 }
