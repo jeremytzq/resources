@@ -28,7 +28,10 @@
 
   let categories = [];
 
+  const UNCATEGORIZED_ID = "__uncategorized__";
+
   const categoryLabel = (id) => {
+    if (id === UNCATEGORIZED_ID) return "Uncategorized";
     const cat = categories.find((c) => c.id === id);
     return cat ? cat.label : id;
   };
@@ -453,13 +456,17 @@
 
   function populateCategorySelect() {
     const sorted = categoriesSortedByLabel();
+    const hasUncategorized = contacts.some((c) => !c.category);
     els.categorySelect.innerHTML =
       '<option value="">Select a resource type…</option>' +
-      sorted.map((c) => `<option value="${c.id}">${escapeHtml(c.label)}</option>`).join("");
+      sorted.map((c) => `<option value="${c.id}">${escapeHtml(c.label)}</option>`).join("") +
+      (hasUncategorized
+        ? `<option value="${UNCATEGORIZED_ID}">Uncategorized</option>`
+        : "");
 
-    els.formCategory.innerHTML = sorted
-      .map((c) => `<option value="${c.id}">${escapeHtml(c.label)}</option>`)
-      .join("");
+    els.formCategory.innerHTML =
+      '<option value="">No resource type</option>' +
+      sorted.map((c) => `<option value="${c.id}">${escapeHtml(c.label)}</option>`).join("");
   }
 
   function renderCategoryManager() {
@@ -674,7 +681,11 @@
   function filteredContacts() {
     return contacts
       .filter((c) => {
-        if (state.category && c.category !== state.category) return false;
+        if (state.category === UNCATEGORIZED_ID) {
+          if (c.category) return false;
+        } else if (state.category && c.category !== state.category) {
+          return false;
+        }
         if (state.company && c.company !== state.company) return false;
         if (state.bankerType && c.bankerType !== state.bankerType) return false;
         if (state.search) {
@@ -795,7 +806,7 @@
     } else {
       els.modalTitle.textContent = "Add Contact";
       els.contactId.value = "";
-      els.formCategory.value = state.category || (categories[0] ? categories[0].id : "");
+      els.formCategory.value = state.category === UNCATEGORIZED_ID ? "" : state.category || "";
       updateFormCompanyOptions();
       if (state.company) els.formCompany.value = state.company;
       els.deleteContactBtn.classList.add("hidden");
